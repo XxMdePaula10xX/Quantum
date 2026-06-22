@@ -1,0 +1,17 @@
+# Filmes com ano e bilheteria (modos Linha do tempo, QuandoLançou, Maior ou
+# menor). P577=data de publicação, P2142=bilheteria, P18=imagem (cartaz, se
+# licença livre), P495=país de origem.
+SELECT DISTINCT ?item ?itemLabel ?year ?boxoffice ?image ?countryLabel ?countryCode WHERE {
+  ?item wdt:P31 wd:Q11424 ;          # instância de filme
+        wdt:P577 ?pubdate ;
+        wdt:P2142 ?boxoffice .
+  OPTIONAL { ?item wdt:P18 ?image. }
+  OPTIONAL {
+    ?item wdt:P495 ?country .
+    ?country wdt:P298 ?countryCode .
+  }
+  BIND(YEAR(?pubdate) AS ?year)
+  FILTER(?year > 1900 && ?year <= YEAR(NOW()))
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
+}
+LIMIT 5000

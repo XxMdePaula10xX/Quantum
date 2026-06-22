@@ -1,0 +1,195 @@
+import { useEffect, useState } from 'react';
+import ItemImage from '../../components/ItemImage.jsx';
+
+// Cada view recebe { round, onSubmit, answered } e devolve o `input` esperado
+// pela função evaluate do minigame (ver registry.js). Quando `answered` é true,
+// os controles travam e (quando faz sentido) destacam a resposta.
+
+function fmtNum(n) {
+  return typeof n === 'number' ? n.toLocaleString('pt-BR') : n;
+}
+
+// ---- QuandoLançou ----------------------------------------------------------
+export function WhenLaunchedView({ round, onSubmit, answered }) {
+  const [year, setYear] = useState(1980);
+  return (
+    <div className="card">
+      <ItemImage src={round.item.image} alt={round.item.name} />
+      <h2 className="center" style={{ margin: '12px 0 4px' }}>{round.item.name}</h2>
+      <p className="muted center" style={{ marginTop: 0 }}>Em que ano? ({round.item.category})</p>
+      <div className="yeardisplay">{year}</div>
+      <input
+        className="slider"
+        type="range"
+        min={1800}
+        max={2026}
+        value={Math.max(1800, Math.min(2026, year))}
+        disabled={answered}
+        onChange={(e) => setYear(Number(e.target.value))}
+      />
+      <div className="row" style={{ marginTop: 8 }}>
+        <input
+          type="number"
+          value={year}
+          disabled={answered}
+          onChange={(e) => setYear(Number(e.target.value))}
+          aria-label="ano"
+        />
+      </div>
+      {!answered && (
+        <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => onSubmit({ guess: year })}>
+          Confirmar
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ---- Maior ou menor --------------------------------------------------------
+export function HigherLowerView({ round, onSubmit, answered }) {
+  const metricType = round.a.metricType || 'valor';
+  const Side = ({ side, item }) => (
+    <button
+      className="btn block"
+      style={{ height: '100%', flexDirection: 'column', display: 'flex', gap: 8 }}
+      disabled={answered}
+      onClick={() => onSubmit({ choice: side })}
+    >
+      <ItemImage src={item.image} alt={item.name} />
+      <strong>{item.name}</strong>
+      {answered && <span className="muted">{fmtNum(item.metric)}</span>}
+    </button>
+  );
+  return (
+    <div className="card">
+      <p className="center muted">Qual tem o maior <strong>{metricType}</strong>?</p>
+      <div className="vs">
+        <Side side="a" item={round.a} />
+        <span className="or">ou</span>
+        <Side side="b" item={round.b} />
+      </div>
+    </div>
+  );
+}
+
+// ---- De que país é ---------------------------------------------------------
+export function WhichCountryView({ round, onSubmit, answered, feedback }) {
+  const [chosen, setChosen] = useState(null);
+  return (
+    <div className="card">
+      <ItemImage src={round.item.image} alt={round.item.name} />
+      <h2 className="center" style={{ margin: '12px 0' }}>{round.item.name}</h2>
+      <p className="muted center" style={{ marginTop: 0 }}>De que país é?</p>
+      <div className="options">
+        {round.options.map((opt) => {
+          let cls = 'btn';
+          if (answered) {
+            if (opt === feedback?.correctText) cls += ' correct';
+            else if (opt === chosen) cls += ' wrong';
+          }
+          return (
+            <button
+              key={opt}
+              className={cls}
+              disabled={answered}
+              onClick={() => {
+                setChosen(opt);
+                onSubmit({ choice: opt });
+              }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---- Adivinhe pela imagem --------------------------------------------------
+export function GuessImageView({ round, onSubmit, answered, feedback }) {
+  const [reveal, setReveal] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const steps = round.steps;
+  return (
+    <div className="card">
+      <ItemImage src={round.item.image} alt={round.item.name} reveal={answered ? steps : reveal} steps={steps} hideAlt />
+      <p className="muted center">Revelação {answered ? steps : reveal}/{steps}</p>
+      {!answered && reveal < steps && (
+        <button className="btn ghost block" onClick={() => setReveal((r) => r + 1)}>
+          Revelar mais (vale menos pontos)
+        </button>
+      )}
+      <div className="options" style={{ marginTop: 10 }}>
+        {round.options.map((opt) => {
+          let cls = 'btn';
+          if (answered) {
+            if (opt === feedback?.correctText) cls += ' correct';
+            else if (opt === chosen) cls += ' wrong';
+          }
+          return (
+            <button
+              key={opt}
+              className={cls}
+              disabled={answered}
+              onClick={() => {
+                setChosen(opt);
+                onSubmit({ choice: opt, revealStep: reveal });
+              }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---- Linha do tempo --------------------------------------------------------
+export function TimelineView({ round, onSubmit, answered }) {
+  const [order, setOrder] = useState(round.items.map((it) => it.id));
+  useEffect(() => setOrder(round.items.map((it) => it.id)), [round]);
+  const byId = new Map(round.items.map((it) => [it.id, it]));
+
+  const move = (i, dir) => {
+    setOrder((cur) => {
+      const j = i + dir;
+      if (j < 0 || j >= cur.length) return cur;
+      const next = cur.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
+
+  return (
+    <div className="card">
+      <p className="center muted">Ordene do <strong>mais antigo</strong> (topo) ao <strong>mais recente</strong>.</p>
+      {order.map((id, i) => {
+        const it = byId.get(id);
+        return (
+          <div className="timeline-item" key={id}>
+            <span>{it.name}{answered ? ` (${it.year})` : ''}</span>
+            <span className="reorder">
+              <button className="btn small ghost" disabled={answered || i === 0} onClick={() => move(i, -1)}>↑</button>
+              <button className="btn small ghost" disabled={answered || i === order.length - 1} onClick={() => move(i, 1)}>↓</button>
+            </span>
+          </div>
+        );
+      })}
+      {!answered && (
+        <button className="btn primary block" style={{ marginTop: 8 }} onClick={() => onSubmit({ orderedIds: order })}>
+          Confirmar ordem
+        </button>
+      )}
+    </div>
+  );
+}
+
+export const VIEWS = {
+  whenLaunched: WhenLaunchedView,
+  higherLower: HigherLowerView,
+  whichCountry: WhichCountryView,
+  guessImage: GuessImageView,
+  timeline: TimelineView,
+};

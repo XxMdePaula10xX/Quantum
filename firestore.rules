@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore (PRD seção 7).
+// Princípio: pontuações de ranking só podem ser escritas pela Cloud Function
+// (via Admin SDK, que ignora estas regras). O cliente NUNCA escreve score
+// diretamente — só lê os rankings e gerencia seu próprio perfil.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Perfil do usuário: dono lê/escreve; campos sensíveis ficam na Function.
+    match /users/{uid} {
+      allow read: if true;
+      allow write: if isOwner(uid);
+    }
+
+    // Rankings: leitura pública (para exibir), escrita SOMENTE via Admin SDK.
+    match /dailyScores/{date}/{minigame}/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /timerScores/{minigame}/scores/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Desafios diários servidos pelo servidor (opcional).
+    match /dailyChallenges/{date}/{minigame} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

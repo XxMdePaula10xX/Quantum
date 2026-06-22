@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-ssr/
+.vite/
+coverage/
+
+# Local env files (never commit Firebase keys / secrets)
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+*.log
+npm-debug.log*
+.idea/
+.vscode/
+
+# Generated data caches (large; built via scripts/generate)
+scripts/generate/.cache/
