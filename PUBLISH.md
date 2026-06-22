@@ -2,107 +2,110 @@
 
 O Quantum é um web app (Vite/React) **empacotado em app nativo** pelo
 [Capacitor](https://capacitorjs.com/). O [Codemagic](https://codemagic.io)
-constrói o APK/AAB na nuvem (não precisa de Android Studio na sua máquina).
+constrói o app na nuvem (não precisa de Mac nem Android Studio na sua máquina).
 
 - `capacitor.config.json` — id e nome do app.
-- `android/` — projeto Android nativo (commitado; as assets web entram no build via `cap sync`).
-- `codemagic.yaml` — 2 workflows: **android-test** (APK de teste) e **android-release** (AAB assinado).
+- `ios/` e `android/` — projetos nativos (commitados; as assets web entram no build via `cap sync`).
+- `codemagic.yaml` — workflows de **iOS** (simulador / TestFlight) e **Android** (APK de teste / AAB).
+
+> ⚠️ **iOS x Android — diferença importante de teste:**
+> No **Android** dá pra instalar um APK direto no celular, de graça.
+> No **iOS** a Apple **não** permite sideload: para rodar no iPhone você precisa de
+> **conta Apple Developer (US$ 99/ano)** e instalar via **TestFlight**. Não existe
+> "APK de debug" no iOS. (Por isso, para só _testar rápido_, o Android é mais fácil;
+> mas para publicar na App Store, siga o iOS abaixo.)
 
 ---
 
-## 1. Testar no celular (APK de debug) — funciona de cara
+## 🍏 iOS (foco)
 
-1. Crie conta no [codemagic.io](https://codemagic.io) e **conecte o repositório** GitHub `XxMdePaula10xX/Quantum`.
-2. O Codemagic detecta o `codemagic.yaml`. Rode o workflow **"Quantum · APK de teste (debug)"** no branch atual.
-3. Ao terminar, baixe o `.apk` dos artefatos (ou pelo e-mail).
-4. No Android: copie o APK pro celular, toque nele e permita "instalar apps de fonte desconhecida". Pronto, app instalado. 🎉
+Capacitor 8 usa **Swift Package Manager** — sem CocoaPods. Bundle id atual:
+`com.quantum.quiz` (provisório — troque antes de publicar, é permanente).
 
-> Esse APK de debug **não precisa de assinatura nem keystore** — é só pra testar o app de verdade no aparelho.
+### Passo 0 — sanity check grátis (compila no iOS?)
+Sem gastar nada nem ter conta Apple, rode no Codemagic o workflow
+**"Quantum · iOS (build de simulador, sem assinatura)"**. Ele confirma que o app
+**compila** no iOS (build de simulador). Não gera nada instalável no iPhone, mas
+valida o pipeline. Bom primeiro passo.
+
+### Passo 1 — conta Apple Developer
+Inscreva-se no [Apple Developer Program](https://developer.apple.com/programs/)
+(US$ 99/ano). É obrigatório para rodar no iPhone e publicar.
+
+### Passo 2 — registrar o app na App Store Connect
+1. Em [App Store Connect](https://appstoreconnect.apple.com) → **Apps → +** → novo app.
+2. Use o **Bundle ID** `com.quantum.quiz` (crie o identificador no
+   [Developer → Identifiers](https://developer.apple.com/account/resources/identifiers/list) antes).
+
+### Passo 3 — assinatura automática no Codemagic (App Store Connect API key)
+1. Em App Store Connect → **Users and Access → Integrations → App Store Connect API**
+   → gere uma chave (role "App Manager"). Baixe o arquivo `.p8` (só dá pra baixar uma vez).
+2. No Codemagic → **Teams → Integrations → App Store Connect → Connect**: suba o `.p8`,
+   o Issuer ID e o Key ID. **Dê a essa integração o nome `quantum_asc`** (usado no `codemagic.yaml`).
+3. O `codemagic.yaml` já está pronto (`ios_signing` automático + `integrations: app_store_connect`).
+
+### Passo 4 — build e TestFlight
+1. (Opcional) crie o grupo de variáveis `firebase` (ver seção Firebase) para ligar login/ranking.
+2. Rode o workflow **"Quantum · iOS (TestFlight)"**. Ele gera o `.ipa` assinado e
+   **envia pro TestFlight** automaticamente.
+3. No iPhone, instale o app **TestFlight** (App Store) e aceite o convite — pronto, app rodando. 🎉
+
+### Passo 5 — publicar na App Store
+Quando estiver feliz, em App Store Connect preencha a ficha (ícone, capturas,
+**política de privacidade** — exigida por causa do login/LGPD) e envie para revisão.
+
+### Trocar o Bundle ID (antes de publicar)
+É **permanente** na loja. Para trocar: edite `appId` no `capacitor.config.json`,
+apague a pasta `ios/` e rode `npx cap add ios` (ou troque `PRODUCT_BUNDLE_IDENTIFIER`
+no Xcode). Faça o mesmo no `bundle_identifier` do `codemagic.yaml`.
 
 ---
 
-## 2. Ligar login/ranking no app empacotado (opcional)
+## 🤖 Android (mais fácil de testar)
 
-O build lê as chaves do Firebase de variáveis de ambiente. No Codemagic:
+### Teste no celular (APK de debug) — funciona de cara
+1. No Codemagic, rode **"Quantum · APK de teste (debug)"**.
+2. Baixe o `.apk`, copie pro celular, instale (permita "fonte desconhecida"). 🎉
+   Sem keystore, sem custo.
 
-1. **Teams/App settings → Environment variables.**
-2. Crie um grupo chamado **`firebase`** e adicione (marque "Secure"):
-   - `VITE_FIREBASE_API_KEY`
-   - `VITE_FIREBASE_AUTH_DOMAIN`
-   - `VITE_FIREBASE_PROJECT_ID`
-   - `VITE_FIREBASE_STORAGE_BUCKET`
-   - `VITE_FIREBASE_SENDER_ID`
-   - `VITE_FIREBASE_APP_ID`
-   (os mesmos valores do seu `.env` local)
-3. No `codemagic.yaml`, no workflow **android-test**, descomente:
-   ```yaml
-   #     groups:
-   #       - firebase
+### Publicar na Play Store (AAB assinado)
+1. Gere a keystore (guarde bem — perdeu, não atualiza mais o app):
+   ```bash
+   keytool -genkey -v -keystore quantum.keystore -alias quantum -keyalg RSA -keysize 2048 -validity 10000
    ```
-4. **Authentication → Settings → Authorized domains** no Firebase: adicione o domínio do app empacotado. Para Capacitor Android o app roda em `https://localhost` — adicione `localhost` aos domínios autorizados, senão o login pode ser bloqueado.
+2. Codemagic → **Code signing → Android**: suba a keystore com o reference name `quantum_keystore`.
+3. Rode **"Quantum · AAB assinado (Play Store)"** → `.aab`.
+4. [Play Console](https://play.google.com/console) (US$ 25, uma vez) → crie o app → suba o `.aab`.
+5. A cada versão, aumente `versionCode`/`versionName` em `android/app/build.gradle`.
 
-Sem isso, o app empacotado funciona offline (jogo local), só sem login/ranking.
-
----
-
-## 3. Publicar na Play Store (AAB assinado)
-
-### 3.1 Defina o ID do app ANTES de publicar ⚠️
-`appId` é **permanente** na loja. Hoje está `com.quantum.quiz` (provisório). Para
-trocar pelo seu definitivo (ex.: `com.seunome.quantum`), edite `capacitor.config.json`,
-apague a pasta `android/` e rode `npx cap add android` de novo (ou troque
-`applicationId`/`namespace` em `android/app/build.gradle` e o `package_name` em
-`android/app/src/main/res/values/strings.xml`).
-
-### 3.2 Gere a keystore (assinatura) — uma vez, guarde bem
-```bash
-keytool -genkey -v -keystore quantum.keystore -alias quantum -keyalg RSA -keysize 2048 -validity 10000
-```
-Guarde o arquivo `quantum.keystore` e as senhas em local seguro (perdeu = não
-consegue mais atualizar o app publicado).
-
-### 3.3 Configure a assinatura no Codemagic
-1. **App settings → Code signing → Android.**
-2. Faça upload do `quantum.keystore`, informe as senhas e o alias.
-3. Dê a esse keystore o **reference name `quantum_keystore`** (é o nome usado no `codemagic.yaml`).
-
-O `android/app/build.gradle` já está pronto: ele assina o release automaticamente
-quando o Codemagic injeta a keystore (variáveis `CM_*`).
-
-### 3.4 Rode o release e suba na loja
-1. Rode o workflow **"Quantum · AAB assinado (Play Store)"** → baixe o `.aab`.
-2. Crie a conta no [Google Play Console](https://play.google.com/console) (US$ 25, uma vez).
-3. Crie o app, preencha a ficha (ícone, descrição, política de privacidade — exigida por causa do login/LGPD) e faça upload do `.aab`.
-4. A cada nova versão, aumente `versionCode` (e `versionName`) em `android/app/build.gradle`.
-
-> Dá pra automatizar o upload direto pra Play Store pelo Codemagic (Google Play
-> publishing com uma service account), mas no começo subir o `.aab` na mão é mais simples.
+Para trocar o appId (permanente): `capacitor.config.json` + `applicationId`/`namespace`
+em `android/app/build.gradle` + `package_name` em `strings.xml`.
 
 ---
 
-## 4. iOS (depois)
+## 🔥 Firebase no app empacotado (login/ranking) — opcional
 
-Precisa de **Mac + Xcode + conta Apple Developer (US$ 99/ano)**. Num Mac:
-```bash
-npm i @capacitor/ios
-npx cap add ios
-```
-Depois dá pra adicionar um workflow iOS no Codemagic (instâncias macOS). Fica para
-quando o Android estiver no ar.
+O build lê as chaves de variáveis de ambiente. No Codemagic:
+1. **Environment variables** → crie o grupo **`firebase`** com as `VITE_FIREBASE_*`
+   (mesmos valores do seu `.env`), marcadas como "Secure".
+2. Nos workflows que ainda não referenciam, descomente `groups: - firebase`.
+3. Login por e-mail/senha funciona no app empacotado sem config extra. (Os modos
+   offline funcionam mesmo sem Firebase.)
 
 ---
 
-## Ícone e splash (recomendado antes de publicar)
-Gere ícones/splash a partir de uma imagem com:
+## 🎨 Ícone e splash (antes de publicar)
 ```bash
 npm i -D @capacitor/assets
-npx capacitor-assets generate --android
+# coloque resources/icon.png (1024×1024) e resources/splash.png (2732×2732)
+npx capacitor-assets generate
 ```
-(coloque um `resources/icon.png` 1024×1024 e `resources/splash.png` 2732×2732).
+Gera ícones/splash para iOS e Android automaticamente.
 
 ---
 
-## Resumo do ciclo de atualização
+## 🔁 Ciclo de atualização
 1. Mexeu no código/base → `git push`.
-2. Codemagic rebuilda (web + Capacitor + Android).
-3. Baixa o APK (teste) ou AAB (loja). Para a loja, suba o AAB e aumente o `versionCode`.
+2. Codemagic rebuilda (web + Capacitor + nativo).
+3. iOS: novo build TestFlight/App Store (aumente o build em `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION`).
+   Android: novo AAB (aumente `versionCode`).
