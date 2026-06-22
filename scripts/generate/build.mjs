@@ -54,6 +54,10 @@ const QUERIES = [
   { file: 'films.rq', category: 'filme', metric: 'boxoffice', metricType: 'bilheteria (US$)', chunkBy: 'year', from: 1900 },
   { file: 'cities.rq', category: 'cidade', metric: 'population', metricType: 'população', chunkBy: 'population' },
   { file: 'events.rq', category: 'evento', chunkBy: 'year', from: -3000 },
+  // Recentes / Gen-Z:
+  { file: 'games.rq', category: 'jogo', metric: 'units', metricType: 'cópias vendidas', chunkBy: 'year', from: 1970 },
+  { file: 'consoles.rq', category: 'console', metric: 'units', metricType: 'unidades vendidas', chunkBy: 'year', from: 1972 },
+  { file: 'phones.rq', category: 'celular', chunkBy: 'year', from: 1990 },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

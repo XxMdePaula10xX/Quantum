@@ -83,6 +83,9 @@ npm run data:split    # rápido, sem rede; regenera a partir de items.json
 | `films.rq` | Filmes com ano e bilheteria | Linha do tempo, QuandoLançou, Maior ou menor |
 | `cities.rq` | Cidades com população, país, coordenadas | Maior ou menor, De que país é |
 | `events.rq` | Eventos históricos com data | Linha do tempo |
+| `games.rq` | Videogames com ano, vendas, país (imagem opcional) | Linha do tempo, Maior ou menor, De que país é, QuandoLançou |
+| `consoles.rq` | Consoles com imagem, ano, vendas | QuandoLançou, Adivinhe pela imagem, Maior ou menor |
+| `phones.rq` | Smartphones com imagem, ano, país | QuandoLançou, Adivinhe pela imagem, De que país é |
 
 Edite/teste as queries no [Wikidata Query Service](https://query.wikidata.org/).
 Se um minigame ficar abaixo de 2.000 itens, amplie as `VALUES`/categorias da

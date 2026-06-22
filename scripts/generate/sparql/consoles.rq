@@ -1,0 +1,19 @@
+# Consoles de videogame (modos QuandoLançou, Adivinhe pela imagem, De que país
+# é, Maior ou menor, Linha do tempo). Q8076=console de videogame.
+# P571=lançamento, P18=imagem (fotos de console no Commons costumam ser livres),
+# P2664=unidades vendidas, P495=país de origem. Fatiado por faixa de ano.
+SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode ?sitelinks ?units WHERE {
+  ?item wdt:P31 wd:Q8076 ;            # console de videogame
+        wdt:P18 ?image ;
+        wdt:P571 ?inception ;
+        wikibase:sitelinks ?sitelinks .
+  BIND(YEAR(?inception) AS ?year)
+  FILTER(?year >= __MIN__ && ?year < __MAX__)
+  OPTIONAL { ?item wdt:P2664 ?units. }
+  OPTIONAL {
+    ?item wdt:P495 ?country .
+    OPTIONAL { ?country wdt:P298 ?countryCode. }
+  }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
+}
+LIMIT __LIMIT__

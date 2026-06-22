@@ -1,0 +1,21 @@
+# Videogames (modos: Linha do tempo, Maior ou menor, De que país é, QuandoLançou
+# e Adivinhe pela imagem quando há imagem livre). Q7889=videogame.
+# P577=data de publicação, P2664=unidades vendidas, P495=país, P18=imagem.
+# Imagem é OPCIONAL (capa costuma ser copyright e cai no filtro) — mesmo sem
+# imagem o jogo alimenta Linha do tempo / Maior ou menor por ANO e VENDAS.
+# Fatiado por faixa de ano (__MIN__/__MAX__).
+SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode ?sitelinks ?units WHERE {
+  ?item wdt:P31 wd:Q7889 ;            # instância de videogame
+        wdt:P577 ?pubdate ;
+        wikibase:sitelinks ?sitelinks .
+  BIND(YEAR(?pubdate) AS ?year)
+  FILTER(?year >= __MIN__ && ?year < __MAX__)
+  OPTIONAL { ?item wdt:P18 ?image. }
+  OPTIONAL { ?item wdt:P2664 ?units. }
+  OPTIONAL {
+    ?item wdt:P495 ?country .
+    OPTIONAL { ?country wdt:P298 ?countryCode. }
+  }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
+}
+LIMIT __LIMIT__
