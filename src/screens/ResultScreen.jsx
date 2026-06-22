@@ -1,12 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { buildShareText } from '../engine/share.js';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { submitDailyScore, submitTimerScore } from '../firebase/scores.js';
 
-export default function ResultScreen({ result, user, onBackToMenu, onOpenRanking }) {
+export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpenRanking }) {
   const [shared, setShared] = useState(false);
-  const [submitState, setSubmitState] = useState('idle'); // idle|sending|done|error
+  const [submitState, setSubmitState] = useState('idle'); // idle|sending|done|error|skipped
+  const [submitMsg, setSubmitMsg] = useState('');
   const ranked = result.format === 'daily' || result.format === 'timer';
+
+  // Envio AUTOMÁTICO ao ranking (sem botão): só em partida recém-terminada,
+  // com Firebase configurado e usuário logado.
+  useEffect(() => {
+    if (!fresh || !ranked) return;
+    if (!FIREBASE_ENABLED || !user) {
+      setSubmitState('skipped');
+      return;
+    }
+    let alive = true;
+    setSubmitState('sending');
+    (async () => {
+      try {
+        if (result.format === 'daily') {
+          await submitDailyScore({
+            minigameId: result.minigameId,
+            date: result.date,
+            answers: result.answers,
+          });
+        } else {
+          await submitTimerScore({
+            minigameId: result.minigameId,
+            rounds: result.breakdown.map((b) => ({
+              itemId: b.itemId,
+              salt: b.salt,
+              input: b.input,
+              timeRemaining: b.timeRemaining,
+              timeTotal: result.timeTotal,
+            })),
+          });
+        }
+        if (alive) setSubmitState('done');
+      } catch (e) {
+        if (!alive) return;
+        setSubmitState('error');
+        setSubmitMsg(e?.message || 'Não foi possível enviar agora.');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [fresh, ranked, user, result]);
 
   const shareText = buildShareText({
     minigameName: result.minigameName,
@@ -24,34 +67,6 @@ export default function ResultScreen({ result, user, onBackToMenu, onOpenRanking
       }
     } catch {
       /* cancelado */
-    }
-  };
-
-  const sendToRanking = async () => {
-    setSubmitState('sending');
-    try {
-      if (result.format === 'daily') {
-        await submitDailyScore({
-          minigameId: result.minigameId,
-          date: result.date,
-          answers: result.answers,
-        });
-      } else {
-        // timer: o servidor reconstrói cada rodada por seed/salt e recalcula.
-        await submitTimerScore({
-          minigameId: result.minigameId,
-          rounds: result.breakdown.map((b) => ({
-            itemId: b.itemId,
-            salt: b.salt,
-            input: b.input,
-            timeRemaining: b.timeRemaining,
-            timeTotal: result.timeTotal,
-          })),
-        });
-      }
-      setSubmitState('done');
-    } catch {
-      setSubmitState('error');
     }
   };
 
@@ -73,29 +88,27 @@ export default function ResultScreen({ result, user, onBackToMenu, onOpenRanking
         {result.isBest && <p className="combo">🎉 Novo recorde!</p>}
       </div>
 
-      <button className="btn primary block" onClick={share}>
-        📤 Compartilhar {shared ? '(copiado!)' : ''}
-      </button>
-
-      {ranked && (
-        FIREBASE_ENABLED ? (
-          user ? (
-            <button className="btn block" disabled={submitState !== 'idle'} onClick={sendToRanking}>
-              {submitState === 'idle' && '🏆 Enviar ao ranking'}
-              {submitState === 'sending' && 'Enviando…'}
-              {submitState === 'done' && '✓ Enviado (validado no servidor)'}
-              {submitState === 'error' && 'Erro — tentar de novo'}
-            </button>
-          ) : (
-            <div className="banner">Entre na sua conta para enviar ao ranking global.</div>
-          )
-        ) : (
-          <div className="banner">Ranking global indisponível (Firebase não configurado neste build).</div>
-        )
+      {/* Status do envio automático ao ranking */}
+      {ranked && fresh && (
+        <RankingStatus state={submitState} msg={submitMsg} firebase={FIREBASE_ENABLED} loggedIn={!!user} />
       )}
 
+      <button className="btn primary block big" onClick={share}>
+        📤 Compartilhar {shared ? '(copiado!)' : ''}
+      </button>
       <button className="btn ghost block" onClick={onOpenRanking}>Ver ranking</button>
       <button className="btn ghost block" onClick={onBackToMenu}>Voltar ao menu</button>
     </div>
   );
+}
+
+function RankingStatus({ state, msg, firebase, loggedIn }) {
+  if (state === 'sending') return <div className="banner">🏆 Enviando ao ranking…</div>;
+  if (state === 'done') return <div className="banner">✓ Enviado ao ranking (validado no servidor).</div>;
+  if (state === 'error') return <div className="banner">⚠️ Não enviado: {msg}</div>;
+  if (state === 'skipped') {
+    if (!firebase) return <div className="banner">Ranking global indisponível (Firebase não configurado).</div>;
+    if (!loggedIn) return <div className="banner">Entre na sua conta para que sua pontuação vá ao ranking.</div>;
+  }
+  return null;
 }

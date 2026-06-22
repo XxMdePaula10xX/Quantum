@@ -29,7 +29,7 @@ Login e ranking global são opcionais e exigem Firebase (veja abaixo).
 |---|---|---|
 | 📅 QuandoLançou | Vê a imagem, chuta o ano | Proximidade |
 | ⚖️ Maior ou menor | Escolhe o número maior | Binário + combo |
-| 🌍 De que país é | Adivinha o país (4 opções) | Binário |
+| 🌍 De que país é | Adivinha o país (busca em lista) | Binário |
 | 🖼️ Adivinhe pela imagem | Imagem revela aos poucos, adivinha o nome | Proximidade (revelação) |
 | ⏳ Linha do tempo | Ordena por ano | Ordenação por pares |
 
@@ -71,7 +71,7 @@ scripts/generate SPARQL + pipeline da base (Wikidata + Commons)
 
 ## Firebase (opcional — login e ranking) — PRD §7
 
-1. Crie um projeto no Firebase (Auth: Google + e-mail/senha; Firestore).
+1. Crie um projeto no Firebase (Auth: e-mail/senha; Firestore).
 2. `cp .env.example .env` e preencha as chaves `VITE_FIREBASE_*`.
 3. Deploy das regras e funções:
    ```bash
@@ -88,15 +88,18 @@ o cliente de escrever score diretamente.
 
 ## Base de dados (PRD §3)
 
-A base é gerada **uma vez** e embutida (offline). Para gerar a real:
+A base ATIVA é sempre `src/data/items.json` (cliente **e** Cloud Function
+importam o mesmo arquivo). Inicialmente é uma cópia da base de exemplo. Para
+trocar pela base real:
 
 ```bash
 npm run data:build   # roda SPARQL no Wikidata + licenças no Commons
 ```
 
-Gera `src/data/items.json` e reporta o "fôlego" por minigame (alvo: ≥ 2.000
-itens cada — ver `scripts/generate/README.md`). Depois, aponte
-`src/data/index.js` para `items.json`.
+O script **sobrescreve** `src/data/items.json` com os dados do Wikidata e
+reporta o "fôlego" por minigame (alvo: ≥ 2.000 itens cada — ver
+`scripts/generate/README.md`). **Não precisa editar mais nada** — o app passa a
+usar a base real automaticamente.
 
 ---
 

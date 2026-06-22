@@ -45,13 +45,14 @@ describe('higherLower', () => {
 });
 
 describe('whichCountry', () => {
-  it('monta 4 opções incluindo a correta', () => {
+  it('lista pesquisável com todos os países (inclui o correto, sem duplicar)', () => {
     const def = getMinigame('whichCountry');
     const round = def.buildRound(pool, pool[0], 7);
-    expect(round.options).toContain('Brasil');
-    expect(round.options.length).toBeLessThanOrEqual(4);
+    expect(round.countries).toContain('Brasil');
+    expect(new Set(round.countries).size).toBe(round.countries.length);
     const { correct } = def.evaluate(round, { choice: 'Brasil' });
     expect(correct).toBe(true);
+    expect(def.evaluate(round, { choice: 'França' }).correct).toBe(false);
   });
 });
 

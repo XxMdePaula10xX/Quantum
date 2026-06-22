@@ -193,6 +193,7 @@ body::after {
 }
 
 .options { display: flex; flex-direction: column; gap: 10px; }
+.country-list { max-height: 280px; overflow-y: auto; }
 
 .slider { width: 100%; height: 32px; accent-color: var(--accent-2); }
 .yeardisplay {

@@ -22,8 +22,9 @@ SPARQL são cacheadas em `scripts/generate/.cache/` (apague para re-buscar).
 4. Deduplica por `id`, embaralha (determinístico) e escreve `items.json`.
 5. Reporta o **fôlego** por minigame (alvo ≥ 2.000 itens — PRD §3).
 
-Depois de gerar, troque o import em `src/data/index.js` de `items.sample.json`
-para `items.json`.
+O script **sobrescreve** `src/data/items.json` (a base ATIVA do app). Não é
+preciso editar mais nada: app e Cloud Function já importam esse arquivo. Para
+voltar à base de exemplo, copie `items.sample.json` por cima de `items.json`.
 
 ## Queries (`sparql/`)
 

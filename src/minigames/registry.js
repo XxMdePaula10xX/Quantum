@@ -61,29 +61,32 @@ export const MINIGAMES = [
     name: 'Maior ou menor',
     icon: '⚖️',
     blurb: 'Qual item tem o número maior?',
-    requiredFields: ['name', 'metric'],
+    requiredFields: ['name', 'metric', 'metricType'],
     scoring: { type: 'binary', basePoints: 100, useCombo: true },
     timerSeconds: 45,
     buildRound(pool, item, seed) {
-      // escolhe um oponente determinístico != item
-      const others = pool.filter((p) => p.id !== item.id);
+      // oponente com a MESMA métrica (comparação faz sentido); cai para mesma
+      // categoria e, por último, qualquer item, só se não houver alternativa.
+      const sameMetric = pool.filter((p) => p.id !== item.id && p.metricType === item.metricType);
+      const sameCat = pool.filter((p) => p.id !== item.id && p.category === item.category);
+      const others = sameMetric.length ? sameMetric : sameCat.length ? sameCat : pool.filter((p) => p.id !== item.id);
       const opp = others[Math.floor(mulberry32(seed)() * others.length)] || item;
       const pair = seededShuffle([item, opp], seed); // ordem visual reproduzível
-      return { kind: 'higherLower', a: pair[0], b: pair[1] };
+      return { kind: 'higherLower', a: pair[0], b: pair[1], metricType: item.metricType };
     },
     // input: { choice: 'a' | 'b' }
     evaluate(round, input) {
       const chosen = input.choice === 'a' ? round.a : round.b;
       const other = input.choice === 'a' ? round.b : round.a;
       const correct = chosen.metric >= other.metric;
-      const metricType = round.a.metricType || 'valor';
+      const metricType = round.metricType || 'valor';
       return {
         answer: { correct },
         correct,
         correctText: (round.a.metric >= round.b.metric ? round.a : round.b).name,
         detail: `${round.a.name}: ${fmt(round.a.metric)} vs ${round.b.name}: ${fmt(
           round.b.metric
-        )} (${metricType}).`,
+        )} — ${metricType}.`,
       };
     },
   },
@@ -96,15 +99,13 @@ export const MINIGAMES = [
     requiredFields: ['name', 'country'],
     scoring: { type: 'binary', basePoints: 1000, useCombo: false },
     timerSeconds: 45,
-    buildRound(pool, item, seed) {
-      const distractors = pickDistractors(
-        pool.map((p) => p.country),
-        item.country,
-        MC_OPTIONS - 1,
-        seed
+    buildRound(pool, item) {
+      // lista pesquisável com todos os países presentes na base (sempre inclui
+      // o correto). O jogador busca e seleciona — sem chute por eliminação.
+      const countries = [...new Set(pool.map((p) => p.country))].sort((a, b) =>
+        a.localeCompare(b, 'pt')
       );
-      const options = seededShuffle([item.country, ...distractors], seed + 1);
-      return { kind: 'whichCountry', item, options };
+      return { kind: 'whichCountry', item, countries };
     },
     // input: { choice: string (país) }
     evaluate(round, input) {

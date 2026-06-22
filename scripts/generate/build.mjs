@@ -137,14 +137,25 @@ async function main() {
 
   let items = [...all.values()];
 
-  // Enriquece licença/autor das imagens (sequencial para respeitar a API).
+  // Enriquece licença/autor das imagens (em paralelo, com limite de conexões).
   const withImages = items.filter((it) => it.image);
-  console.log(`→ buscando licença de ${withImages.length} imagens no Commons…`);
-  for (const it of withImages) {
-    const { license, author } = await imageLicense(it.image);
-    it.license = license;
-    it.author = author;
+  const CONCURRENCY = 10;
+  console.log(`→ buscando licença de ${withImages.length} imagens no Commons (${CONCURRENCY} em paralelo)…`);
+  let done = 0;
+  let cursor = 0;
+  async function worker() {
+    while (cursor < withImages.length) {
+      const it = withImages[cursor++];
+      const { license, author } = await imageLicense(it.image);
+      it.license = license;
+      it.author = author;
+      if (++done % 100 === 0 || done === withImages.length) {
+        process.stdout.write(`\r  ${done}/${withImages.length}`);
+      }
+    }
   }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  console.log('');
 
   items = shuffle(items, 0x9e3779b9);
 

@@ -10,32 +10,44 @@ function fmtNum(n) {
 }
 
 // ---- QuandoLançou ----------------------------------------------------------
+const YEAR_MIN = -3000;
+const YEAR_MAX = new Date().getFullYear();
+
 export function WhenLaunchedView({ round, onSubmit, answered }) {
-  const [year, setYear] = useState(1980);
+  const [year, setYear] = useState(1990);
+  const clamped = Math.max(YEAR_MIN, Math.min(YEAR_MAX, year || 0));
+  const label = year < 0 ? `${Math.abs(year)} a.C.` : year;
   return (
     <div className="card">
       <ItemImage src={round.item.image} alt={round.item.name} />
       <h2 className="center" style={{ margin: '12px 0 4px' }}>{round.item.name}</h2>
       <p className="muted center" style={{ marginTop: 0 }}>Em que ano? ({round.item.category})</p>
-      <div className="yeardisplay">{year}</div>
+
+      <div className="yeardisplay">{label}</div>
+
       <input
         className="slider"
         type="range"
-        min={1800}
-        max={2026}
-        value={Math.max(1800, Math.min(2026, year))}
+        min={YEAR_MIN}
+        max={YEAR_MAX}
+        value={clamped}
         disabled={answered}
         onChange={(e) => setYear(Number(e.target.value))}
+        aria-label="ano (arraste)"
       />
-      <div className="row" style={{ marginTop: 8 }}>
-        <input
-          type="number"
-          value={year}
-          disabled={answered}
-          onChange={(e) => setYear(Number(e.target.value))}
-          aria-label="ano"
-        />
-      </div>
+
+      <p className="muted center" style={{ margin: '6px 0 4px', fontSize: 13 }}>arraste ou digite o ano</p>
+      <input
+        type="number"
+        value={year}
+        disabled={answered}
+        min={YEAR_MIN}
+        max={YEAR_MAX}
+        onChange={(e) => setYear(Number(e.target.value))}
+        aria-label="ano (digite)"
+        style={{ textAlign: 'center' }}
+      />
+
       {!answered && (
         <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => onSubmit({ guess: year })}>
           Confirmar
@@ -47,7 +59,7 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
 
 // ---- Maior ou menor --------------------------------------------------------
 export function HigherLowerView({ round, onSubmit, answered }) {
-  const metricType = round.a.metricType || 'valor';
+  const metricType = round.metricType || round.a.metricType || 'valor';
   const Side = ({ side, item }) => (
     <button
       className="btn block"
@@ -62,7 +74,7 @@ export function HigherLowerView({ round, onSubmit, answered }) {
   );
   return (
     <div className="card">
-      <p className="center muted">Qual tem o maior <strong>{metricType}</strong>?</p>
+      <p className="center muted">Qual tem mais <strong>{metricType}</strong>?</p>
       <div className="vs">
         <Side side="a" item={round.a} />
         <span className="or">ou</span>
@@ -72,36 +84,57 @@ export function HigherLowerView({ round, onSubmit, answered }) {
   );
 }
 
-// ---- De que país é ---------------------------------------------------------
+// ---- De que país é (lista pesquisável) -------------------------------------
+function normalize(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 export function WhichCountryView({ round, onSubmit, answered, feedback }) {
   const [chosen, setChosen] = useState(null);
+  const [query, setQuery] = useState('');
+
+  const filtered = answered
+    ? []
+    : round.countries.filter((c) => normalize(c).includes(normalize(query.trim()))).slice(0, 8);
+
   return (
     <div className="card">
       <ItemImage src={round.item.image} alt={round.item.name} />
       <h2 className="center" style={{ margin: '12px 0' }}>{round.item.name}</h2>
-      <p className="muted center" style={{ marginTop: 0 }}>De que país é?</p>
-      <div className="options">
-        {round.options.map((opt) => {
-          let cls = 'btn';
-          if (answered) {
-            if (opt === feedback?.correctText) cls += ' correct';
-            else if (opt === chosen) cls += ' wrong';
-          }
-          return (
-            <button
-              key={opt}
-              className={cls}
-              disabled={answered}
-              onClick={() => {
-                setChosen(opt);
-                onSubmit({ choice: opt });
-              }}
-            >
-              {opt}
-            </button>
-          );
-        })}
-      </div>
+      <p className="muted center" style={{ marginTop: 0 }}>De que país é? Busque e selecione.</p>
+
+      {answered ? (
+        <div className="options">
+          <div className={`btn ${feedback?.correct ? 'correct' : 'wrong'}`}>
+            {chosen || '—'} {feedback?.correct ? '' : `→ certo: ${feedback?.correctText}`}
+          </div>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Digite o país…"
+            autoFocus
+          />
+          <div className="options country-list" style={{ marginTop: 10 }}>
+            {filtered.length === 0 && <p className="muted center">Nenhum país encontrado.</p>}
+            {filtered.map((c) => (
+              <button
+                key={c}
+                className="btn ghost"
+                onClick={() => {
+                  setChosen(c);
+                  onSubmit({ choice: c });
+                }}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

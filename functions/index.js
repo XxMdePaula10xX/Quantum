@@ -15,7 +15,9 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMinigame } from '../src/minigames/registry.js';
 import { makeDailyRounds, resolveRound, buildRoundFor } from '../src/engine/session.js';
 import { itemsForMinigame } from '../src/minigames/registry.js';
-import items from '../src/data/items.sample.json' assert { type: 'json' };
+// Mesma base ATIVA do app: cliente e servidor importam o MESMO items.json,
+// para que a reconstrução determinística do diário bata exatamente.
+import items from '../src/data/items.json' assert { type: 'json' };
 
 initializeApp();
 const db = getFirestore();

@@ -22,14 +22,16 @@ export default function App() {
     if (format === 'daily') {
       const existing = getDailyResult(minigameId, todayKey());
       if (existing) {
-        setView({ name: 'result', result: existing });
+        // resultado já guardado (dia já jogado) — só visualização, não reenvia.
+        setView({ name: 'result', result: existing, fresh: false });
         return;
       }
     }
     setView({ name: 'game', minigameId, format });
   };
 
-  const finish = (result) => setView({ name: 'result', result });
+  // fresh=true => partida recém-terminada: envia ao ranking automaticamente.
+  const finish = (result) => setView({ name: 'result', result, fresh: true });
 
   switch (view.name) {
     case 'game':
@@ -46,6 +48,7 @@ export default function App() {
       return (
         <ResultScreen
           result={view.result}
+          fresh={view.fresh}
           user={user}
           onBackToMenu={goMenu}
           onOpenRanking={() => setView({ name: 'ranking' })}
