@@ -1,5 +1,6 @@
 # Cidades com população, país e coordenadas (modos Maior ou menor, De que país
 # é; coordenada P625 reservada para o modo WhenTaken futuro).
+# Fatiado por faixa de POPULAÇÃO (__MIN__/__MAX__) para não estourar o timeout.
 SELECT DISTINCT ?item ?itemLabel ?population ?image ?countryLabel ?countryCode ?coord WHERE {
   ?item wdt:P31/wdt:P279* wd:Q515 ;   # instância de cidade (ou subclasse)
         wdt:P1082 ?population ;
@@ -7,8 +8,7 @@ SELECT DISTINCT ?item ?itemLabel ?population ?image ?countryLabel ?countryCode ?
   ?country wdt:P298 ?countryCode .
   OPTIONAL { ?item wdt:P18 ?image. }
   OPTIONAL { ?item wdt:P625 ?coord. }
-  FILTER(?population > 50000)
+  FILTER(?population >= __MIN__ && ?population < __MAX__)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
 }
-ORDER BY DESC(?population)
-LIMIT 5000
+LIMIT __LIMIT__

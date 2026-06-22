@@ -20,12 +20,40 @@ const SPARQL = 'https://query.wikidata.org/sparql';
 const COMMONS = 'https://commons.wikimedia.org/w/api.php';
 const MIN_PER_MINIGAME = 2000; // PRD: fôlego para "nunca repetir" a 5/dia (~400 dias)
 
-// Cada query -> como mapear os campos para o schema de item.
+// Quanto puxar. Ajuste por variável de ambiente:
+//   PER_CHUNK   = LIMIT de cada fatia da query (default 8000)
+//   MAX_PER_QUERY = teto de itens por query, p/ controlar tamanho (default 15000)
+// Ex.: MAX_PER_QUERY=40000 PER_CHUNK=10000 npm run data:build
+const PER_CHUNK = Number(process.env.PER_CHUNK || 8000);
+const MAX_PER_QUERY = Number(process.env.MAX_PER_QUERY || 15000);
+const NOW_YEAR = new Date().getFullYear();
+
+// Gera faixas [min,max) de ano. Janelas menores nos períodos densos (moderno)
+// e maiores na antiguidade (esparsa) — cada fatia fica abaixo do timeout do WDQS.
+function yearWindows(from) {
+  const w = [];
+  const ancient = [[-3000, 0], [0, 1000], [1000, 1500], [1500, 1700], [1700, 1850], [1850, 1900]];
+  for (const [a, b] of ancient) if (b > from) w.push([Math.max(a, from), b]);
+  for (let y = Math.max(1900, from); y <= NOW_YEAR; y += 10) w.push([y, Math.min(y + 10, NOW_YEAR + 1)]);
+  return w;
+}
+
+// Faixas de população (maior -> menor) para fatiar a query de cidades.
+const POP_WINDOWS = [
+  [5_000_000, 100_000_000],
+  [1_000_000, 5_000_000],
+  [500_000, 1_000_000],
+  [200_000, 500_000],
+  [100_000, 200_000],
+  [50_000, 100_000],
+];
+
+// Cada query: como mapear campos + como fatiar (por ano ou por população).
 const QUERIES = [
-  { file: 'cars_products.rq', category: 'produto', metric: null, metricType: null },
-  { file: 'films.rq', category: 'filme', metric: 'boxoffice', metricType: 'bilheteria (US$)' },
-  { file: 'cities.rq', category: 'cidade', metric: 'population', metricType: 'população' },
-  { file: 'events.rq', category: 'evento', metric: null, metricType: null },
+  { file: 'cars_products.rq', category: 'produto', chunkBy: 'year', from: 1850 },
+  { file: 'films.rq', category: 'filme', metric: 'boxoffice', metricType: 'bilheteria (US$)', chunkBy: 'year', from: 1900 },
+  { file: 'cities.rq', category: 'cidade', metric: 'population', metricType: 'população', chunkBy: 'population' },
+  { file: 'events.rq', category: 'evento', chunkBy: 'year', from: -3000 },
 ];
 
 async function runSparql(query, cacheKey) {
@@ -110,7 +138,7 @@ function shuffle(arr, seed) {
 
 const REQUIRED = {
   whenLaunched: ['name', 'image', 'year'],
-  higherLower: ['name', 'metric'],
+  higherLower: ['name', 'metric', 'metricType'],
   whichCountry: ['name', 'country'],
   guessImage: ['name', 'image'],
   timeline: ['name', 'year'],
@@ -120,19 +148,38 @@ async function main() {
   const all = new Map(); // dedupe por id
 
   for (const q of QUERIES) {
-    const query = await readFile(resolve(__dirname, 'sparql', q.file), 'utf8');
-    process.stdout.write(`→ ${q.file} … `);
-    const json = await runSparql(query, q.file.replace('.rq', ''));
-    const rows = json.results.bindings.map((b) => bindingToItem(b, q));
-    let added = 0;
-    for (const it of rows) {
-      if (!it.id || !it.name) continue;
-      if (!all.has(it.id)) {
-        all.set(it.id, it);
-        added++;
+    const template = await readFile(resolve(__dirname, 'sparql', q.file), 'utf8');
+    const windows = q.chunkBy === 'population' ? POP_WINDOWS : yearWindows(q.from);
+    const base = q.file.replace('.rq', '');
+    console.log(`\n→ ${q.file} (${windows.length} fatias, teto ${MAX_PER_QUERY})`);
+
+    let qCount = 0;
+    for (const [min, max] of windows) {
+      if (qCount >= MAX_PER_QUERY) break;
+      const query = template
+        .replaceAll('__MIN__', String(min))
+        .replaceAll('__MAX__', String(max))
+        .replaceAll('__LIMIT__', String(PER_CHUNK));
+      let json;
+      try {
+        json = await runSparql(query, `${base}_${min}_${max}`);
+      } catch (e) {
+        console.log(`   fatia ${min}–${max}: ERRO (${e.message}) — pulando`);
+        continue;
       }
+      const rows = json.results.bindings.map((b) => bindingToItem(b, q));
+      let added = 0;
+      for (const it of rows) {
+        if (!it.id || !it.name) continue;
+        if (qCount >= MAX_PER_QUERY) break;
+        if (!all.has(it.id)) {
+          all.set(it.id, it);
+          added++;
+          qCount++;
+        }
+      }
+      console.log(`   fatia ${min}–${max}: ${rows.length} linhas, +${added} (acum. ${qCount})`);
     }
-    console.log(`${rows.length} linhas, +${added} itens`);
   }
 
   let items = [...all.values()];

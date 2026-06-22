@@ -1,15 +1,15 @@
 # Carros / produtos com imagem, ano e país (modos QuandoLançou, De que país é,
 # Adivinhe pela imagem). P18=imagem, P571=data de criação/início, P17=país.
-# Use ?image (P18) para enriquecer licença/autor via API do Commons.
+# Fatiado por faixa de ano (__MIN__/__MAX__) para não estourar o timeout do WDQS.
 SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
-  VALUES ?type { wd:Q3231690 wd:Q1361017 wd:Q42889 }   # modelo de automóvel, produto, veículo
+  VALUES ?type { wd:Q3231690 wd:Q1361017 wd:Q42889 wd:Q2424752 }   # modelo de automóvel, produto, veículo, produto de consumo
   ?item wdt:P31 ?type ;
         wdt:P18 ?image ;
         wdt:P571 ?inception ;
         wdt:P17 ?country .
   ?country wdt:P298 ?countryCode .
   BIND(YEAR(?inception) AS ?year)
-  FILTER(?year > 1700 && ?year <= YEAR(NOW()))
+  FILTER(?year >= __MIN__ && ?year < __MAX__)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
 }
-LIMIT 5000
+LIMIT __LIMIT__

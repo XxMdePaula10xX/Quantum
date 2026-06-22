@@ -12,6 +12,29 @@ node scripts/generate/build.mjs      # ou: npm run data:build
 Requer rede para `query.wikidata.org` e `commons.wikimedia.org`. Respostas
 SPARQL são cacheadas em `scripts/generate/.cache/` (apague para re-buscar).
 
+### Quanto puxar (quantos itens)
+
+As queries são **fatiadas** (por faixa de ano ou de população) para não estourar
+o timeout de 60s do Wikidata e poder puxar dezenas de milhares de itens. Ajuste
+o volume por variáveis de ambiente:
+
+| Variável | Default | O que faz |
+|---|---|---|
+| `MAX_PER_QUERY` | `15000` | teto de itens por categoria (controla o tamanho do app) |
+| `PER_CHUNK` | `8000` | `LIMIT` de cada fatia |
+
+```bash
+# puxar bem mais (ex.: ~40 mil por categoria)
+MAX_PER_QUERY=40000 PER_CHUNK=10000 npm run data:build      # macOS/Linux
+```
+No Windows (PowerShell):
+```powershell
+$env:MAX_PER_QUERY=40000; $env:PER_CHUNK=10000; npm run data:build
+```
+
+> Referência de tamanho: ~2 mil itens ≈ 0,5 MB embutidos; ~20 mil ≈ alguns MB.
+> Acima de ~20 mil por categoria, considere separar a base por minigame.
+
 ## Etapas
 
 1. Roda cada query em `sparql/*.rq`.

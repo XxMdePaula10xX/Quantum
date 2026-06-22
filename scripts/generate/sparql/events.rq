@@ -1,6 +1,5 @@
-# Eventos históricos com data (modo Linha do tempo). Complementa o dataset do
-# Kaggle "World Important Events" citado no PRD. P585=ponto no tempo,
-# P580=data de início.
+# Eventos históricos com data (modo Linha do tempo). P585=ponto no tempo,
+# P580=data de início. Fatiado por faixa de ano (__MIN__/__MAX__).
 SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
   ?item wdt:P31/wdt:P279* wd:Q1190554 .   # ocorrência / evento
   OPTIONAL { ?item wdt:P585 ?pit. }
@@ -11,7 +10,7 @@ SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
     ?item wdt:P17 ?country .
     ?country wdt:P298 ?countryCode .
   }
-  FILTER(BOUND(?year) && ?year > -3000 && ?year <= YEAR(NOW()))
+  FILTER(BOUND(?year) && ?year >= __MIN__ && ?year < __MAX__)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
 }
-LIMIT 5000
+LIMIT __LIMIT__
