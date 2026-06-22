@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.quantum.quiz"
+    namespace = "com.matheus.quantum"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.quantum.quiz"
+        applicationId "com.matheus.quantum"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

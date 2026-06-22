@@ -137,9 +137,9 @@ workflows:
         - firebase
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.quantum.quiz
+        bundle_identifier: com.matheus.quantum
       vars:
-        BUNDLE_ID: 'com.quantum.quiz'
+        BUNDLE_ID: 'com.matheus.quantum'
     scripts:
       - name: Instalar dependências
         script: npm ci

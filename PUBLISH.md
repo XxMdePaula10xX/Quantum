@@ -20,7 +20,7 @@ constrói o app na nuvem (não precisa de Mac nem Android Studio na sua máquina
 ## 🍏 iOS (foco)
 
 Capacitor 8 usa **Swift Package Manager** — sem CocoaPods. Bundle id atual:
-`com.quantum.quiz` (provisório — troque antes de publicar, é permanente).
+`com.matheus.quantum` (provisório — troque antes de publicar, é permanente).
 
 ### Passo 0 — sanity check grátis (compila no iOS?)
 Sem gastar nada nem ter conta Apple, rode no Codemagic o workflow
@@ -34,7 +34,7 @@ Inscreva-se no [Apple Developer Program](https://developer.apple.com/programs/)
 
 ### Passo 2 — registrar o app na App Store Connect
 1. Em [App Store Connect](https://appstoreconnect.apple.com) → **Apps → +** → novo app.
-2. Use o **Bundle ID** `com.quantum.quiz` (crie o identificador no
+2. Use o **Bundle ID** `com.matheus.quantum` (crie o identificador no
    [Developer → Identifiers](https://developer.apple.com/account/resources/identifiers/list) antes).
 
 ### Passo 3 — assinatura automática no Codemagic (App Store Connect API key)
