@@ -60,9 +60,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Executa SPARQL com cache, POST, timeout e retry com backoff. 504/429/5xx e
 // timeouts são "transitórios": tenta de novo algumas vezes antes de desistir.
+// Hash curto do conteúdo da query: entra no nome do cache para que ALTERAR uma
+// query invalide o cache antigo automaticamente (sem precisar apagar .cache/).
+function queryHash(q) {
+  let h = 5381;
+  for (let i = 0; i < q.length; i++) h = ((h << 5) + h + q.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 async function runSparql(query, cacheKey, attempt = 0) {
   const MAX_RETRIES = 4;
-  const cachePath = resolve(CACHE, `${cacheKey}.json`);
+  const cachePath = resolve(CACHE, `${cacheKey}.${queryHash(query)}.json`);
   if (existsSync(cachePath)) {
     return JSON.parse(await readFile(cachePath, 'utf8'));
   }
