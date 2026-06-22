@@ -56,19 +56,50 @@ const QUERIES = [
   { file: 'events.rq', category: 'evento', chunkBy: 'year', from: -3000 },
 ];
 
-async function runSparql(query, cacheKey) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Executa SPARQL com cache, POST, timeout e retry com backoff. 504/429/5xx e
+// timeouts são "transitórios": tenta de novo algumas vezes antes de desistir.
+async function runSparql(query, cacheKey, attempt = 0) {
+  const MAX_RETRIES = 4;
   const cachePath = resolve(CACHE, `${cacheKey}.json`);
   if (existsSync(cachePath)) {
     return JSON.parse(await readFile(cachePath, 'utf8'));
   }
-  const res = await fetch(`${SPARQL}?format=json&query=${encodeURIComponent(query)}`, {
-    headers: { 'User-Agent': UA, Accept: 'application/sparql-results+json' },
-  });
-  if (!res.ok) throw new Error(`SPARQL ${cacheKey} falhou: ${res.status}`);
-  const json = await res.json();
-  await mkdir(CACHE, { recursive: true });
-  await writeFile(cachePath, JSON.stringify(json));
-  return json;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000); // 90s
+  try {
+    const res = await fetch(SPARQL, {
+      method: 'POST',
+      headers: {
+        'User-Agent': UA,
+        Accept: 'application/sparql-results+json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({ query }),
+      signal: controller.signal,
+    });
+    if (res.status === 429 || res.status >= 500) {
+      throw Object.assign(new Error(`HTTP ${res.status}`), { transient: true });
+    }
+    if (!res.ok) throw new Error(`SPARQL ${cacheKey} falhou: ${res.status}`);
+    const json = await res.json();
+    await mkdir(CACHE, { recursive: true });
+    await writeFile(cachePath, JSON.stringify(json));
+    return json;
+  } catch (e) {
+    const transient = e.transient || e.name === 'AbortError' || e.code === 'ECONNRESET';
+    if (transient && attempt < MAX_RETRIES) {
+      const wait = 5000 * 2 ** attempt; // 5s, 10s, 20s, 40s
+      console.log(`   ${cacheKey}: ${e.message} — tentando de novo em ${wait / 1000}s (${attempt + 1}/${MAX_RETRIES})`);
+      await sleep(wait);
+      return runSparql(query, cacheKey, attempt + 1);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 const val = (b, k) => (b[k] ? b[k].value : undefined);
@@ -216,10 +247,16 @@ async function main() {
 
   await writeFile(OUT, JSON.stringify(items));
   console.log(`\n✓ ${items.length} itens escritos em ${OUT}`);
-  console.log('  (atualize src/data/index.js para importar items.json)');
+  console.log('  O app e a Cloud Function já usam esse items.json automaticamente.');
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Saída limpa: setar exitCode em vez de process.exit() evita o crash de libuv
+// no Windows quando ainda há handles assíncronos abertos.
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((e) => {
+    console.error('\nFalha:', e.message);
+    process.exitCode = 1;
+  });
