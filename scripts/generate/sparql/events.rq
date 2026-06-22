@@ -1,9 +1,10 @@
 # Eventos históricos com data (modo Linha do tempo). Tipos diretos (batalha,
 # guerra) — evita o caminho de subclasses P279* que estoura o timeout.
 # P585=ponto no tempo, P580=data de início. Fatiado por faixa de ano.
-SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
+SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode ?sitelinks WHERE {
   VALUES ?type { wd:Q178561 wd:Q198 }   # batalha, guerra
-  ?item wdt:P31 ?type .
+  ?item wdt:P31 ?type ;
+        wikibase:sitelinks ?sitelinks .   # notoriedade (nº de Wikipédias)
   OPTIONAL { ?item wdt:P585 ?pit. }
   OPTIONAL { ?item wdt:P580 ?start. }
   BIND(YEAR(COALESCE(?pit, ?start)) AS ?year)

@@ -84,57 +84,36 @@ export function HigherLowerView({ round, onSubmit, answered }) {
   );
 }
 
-// ---- De que país é (lista pesquisável) -------------------------------------
-function normalize(s) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
+// ---- De que país é (5 opções) ----------------------------------------------
 export function WhichCountryView({ round, onSubmit, answered, feedback }) {
   const [chosen, setChosen] = useState(null);
-  const [query, setQuery] = useState('');
-
-  const filtered = answered
-    ? []
-    : round.countries.filter((c) => normalize(c).includes(normalize(query.trim()))).slice(0, 8);
-
   return (
     <div className="card">
       <ItemImage src={round.item.image} alt={round.item.name} />
       <h2 className="center" style={{ margin: '12px 0' }}>{round.item.name}</h2>
-      <p className="muted center" style={{ marginTop: 0 }}>De que país é? Busque e selecione.</p>
-
-      {answered ? (
-        <div className="options">
-          <div className={`btn ${feedback?.correct ? 'correct' : 'wrong'}`}>
-            {chosen || '—'} {feedback?.correct ? '' : `→ certo: ${feedback?.correctText}`}
-          </div>
-        </div>
-      ) : (
-        <>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Digite o país…"
-            autoFocus
-          />
-          <div className="options country-list" style={{ marginTop: 10 }}>
-            {filtered.length === 0 && <p className="muted center">Nenhum país encontrado.</p>}
-            {filtered.map((c) => (
-              <button
-                key={c}
-                className="btn ghost"
-                onClick={() => {
-                  setChosen(c);
-                  onSubmit({ choice: c });
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <p className="muted center" style={{ marginTop: 0 }}>De que país é?</p>
+      <div className="options">
+        {round.options.map((opt) => {
+          let cls = 'btn';
+          if (answered) {
+            if (opt === feedback?.correctText) cls += ' correct';
+            else if (opt === chosen) cls += ' wrong';
+          }
+          return (
+            <button
+              key={opt}
+              className={cls}
+              disabled={answered}
+              onClick={() => {
+                setChosen(opt);
+                onSubmit({ choice: opt });
+              }}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

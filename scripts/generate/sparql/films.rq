@@ -1,10 +1,11 @@
 # Filmes com ano e bilheteria (modos Linha do tempo, QuandoLançou, Maior ou
 # menor). P577=data de publicação, P2142=bilheteria, P18=imagem, P495=país.
 # Fatiado por faixa de ano (__MIN__/__MAX__).
-SELECT DISTINCT ?item ?itemLabel ?year ?boxoffice ?image ?countryLabel ?countryCode WHERE {
+SELECT DISTINCT ?item ?itemLabel ?year ?boxoffice ?image ?countryLabel ?countryCode ?sitelinks WHERE {
   ?item wdt:P31 wd:Q11424 ;          # instância de filme
         wdt:P577 ?pubdate ;
-        wdt:P2142 ?boxoffice .
+        wdt:P2142 ?boxoffice ;
+        wikibase:sitelinks ?sitelinks .   # notoriedade (nº de Wikipédias)
   OPTIONAL { ?item wdt:P18 ?image. }
   OPTIONAL {
     ?item wdt:P495 ?country .

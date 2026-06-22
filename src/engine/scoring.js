@@ -11,6 +11,17 @@ export const PONTOS_MAX = 1000;
 export const PONTOS_ACERTO_BASE = 100; // modo "Maior ou menor" (binário)
 export const BONUS_PERFEITO = 200; // modo "Linha do tempo" (ordenação perfeita)
 export const PROXIMITY_K = 1.5; // severidade padrão da curva de proximidade
+export const HINT_PENALTY = 0.2; // cada dica PAGA reduz os pontos em 20%
+
+/**
+ * Penalidade por dicas pagas (a 1ª dica, exibida na tela, é grátis).
+ * Multiplicativa: 1 dica => 80%, 2 => 64%, 3 => 51%...
+ * Aplicada no cliente e no servidor (mesmo `hintsUsed` enviado na resposta).
+ */
+export function applyHintPenalty(points, hintsUsed = 0) {
+  const factor = Math.pow(1 - HINT_PENALTY, Math.max(0, hintsUsed | 0));
+  return Math.round(points * factor);
+}
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 

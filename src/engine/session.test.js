@@ -48,6 +48,15 @@ describe('reconstrução determinística (cliente == servidor)', () => {
     expect(points).toEqual([100, 110, 120]); // combo cresce 10% por acerto
   });
 
+  it('dicas pagas reduzem os pontos (cliente e servidor usam input.hintsUsed)', () => {
+    const def = getMinigame('whenLaunched');
+    const round = buildRoundFor(def, items, items[0], 0);
+    const semDica = resolveRound(def, round, { guess: items[0].year }, {});
+    const comDuas = resolveRound(def, round, { guess: items[0].year, hintsUsed: 2 }, {});
+    expect(semDica.points).toBe(1000);
+    expect(comDuas.points).toBe(640); // 1000 * 0.8^2
+  });
+
   it('bônus de tempo aumenta os pontos no formato timer', () => {
     const def = getMinigame('whenLaunched');
     const round = buildRoundFor(def, items, items[0], 0);

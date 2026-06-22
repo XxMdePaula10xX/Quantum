@@ -7,6 +7,7 @@ import {
   orderingScore,
   timeBonusScore,
   scoreRound,
+  applyHintPenalty,
   PONTOS_MAX,
   PONTOS_ACERTO_BASE,
 } from './scoring.js';
@@ -91,6 +92,20 @@ describe('timeBonusScore', () => {
 
   it('chute rápido e ruim continua valendo pouco', () => {
     expect(timeBonusScore(0, 60, 60)).toBe(0);
+  });
+});
+
+describe('applyHintPenalty', () => {
+  it('0 dicas pagas => sem penalidade', () => {
+    expect(applyHintPenalty(1000, 0)).toBe(1000);
+  });
+  it('cada dica paga reduz 20% (multiplicativo)', () => {
+    expect(applyHintPenalty(1000, 1)).toBe(800);
+    expect(applyHintPenalty(1000, 2)).toBe(640);
+    expect(applyHintPenalty(1000, 3)).toBe(512);
+  });
+  it('nunca aumenta os pontos', () => {
+    expect(applyHintPenalty(100, 5)).toBeLessThan(100);
   });
 });
 

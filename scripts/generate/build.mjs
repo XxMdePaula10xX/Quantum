@@ -114,6 +114,8 @@ function bindingToItem(b, q) {
     country: val(b, 'countryLabel'),
     countryCode: val(b, 'countryCode'),
     category: q.category,
+    // notoriedade (nº de Wikipédias) — usada para priorizar conhecimento geral
+    fame: val(b, 'sitelinks') ? parseInt(val(b, 'sitelinks'), 10) : 0,
   };
   if (q.metric && val(b, q.metric) != null) {
     item.metric = Number(val(b, q.metric));

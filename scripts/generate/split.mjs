@@ -22,11 +22,11 @@ const MG_DIR = resolve(DATA, 'mg');
 // Reduz o tamanho de cada arquivo sem afetar a ordem/ids (logo, o diário
 // continua determinístico).
 const PROJECT = {
-  whenLaunched: ['id', 'name', 'image', 'year', 'category'],
-  higherLower: ['id', 'name', 'metric', 'metricType', 'category', 'image'],
-  whichCountry: ['id', 'name', 'country', 'image'],
-  guessImage: ['id', 'name', 'image'],
-  timeline: ['id', 'name', 'year'],
+  whenLaunched: ['id', 'name', 'image', 'year', 'category', 'country'],
+  higherLower: ['id', 'name', 'metric', 'metricType', 'category', 'image', 'country'],
+  whichCountry: ['id', 'name', 'country', 'image', 'category'],
+  guessImage: ['id', 'name', 'image', 'category', 'country', 'year'],
+  timeline: ['id', 'name', 'year', 'category'],
 };
 
 const project = (item, fields) => {

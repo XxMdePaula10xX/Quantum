@@ -7,20 +7,29 @@
 //  - scoring: configuração passada a engine/scoring.scoreRound
 //  - buildRound(pool, focusItem, seed): monta os dados que a UI mostra
 //  - evaluate(round, input): { answer, correct, correctText, detail }
-//      answer  -> objeto consumido por scoreRound (mesmo no cliente e servidor)
-//      correct -> boolean (para combo / feedback)
-//      correctText -> resposta correta para o feedback pós-resposta
+//  - hints(round): string[]  -> [0] é GRÁTIS (sempre na tela); 1+ são pagas
+//      (cada uma reduz 20% dos pontos). Sempre relacionadas ao jogo.
 
 import { seededShuffle, hashStringToInt, mulberry32 } from '../engine/rng.js';
 
-const MC_OPTIONS = 4; // opções de múltipla escolha
+const MC_OPTIONS = 4; // múltipla escolha padrão (Adivinhe pela imagem)
+const COUNTRY_OPTIONS = 5; // opções no "De que país é"
 export const GUESS_IMAGE_STEPS = 4; // níveis de revelação (0..4)
 
-// Filtra a base mantendo só itens que têm todos os campos exigidos.
+// Dificuldade / "conhecimento geral": se a base tem `fame` (nº de Wikipédias do
+// item = notoriedade), priorizamos os mais conhecidos e limitamos o tamanho.
+export const GENERAL_KNOWLEDGE_TOP = 5000;
+
+// Filtra a base para um minigame e aplica a dificuldade (conhecimento geral).
+// Ordenação estável por `fame` => determinístico (cliente e servidor iguais).
+// Sem `fame` (base antiga/exemplo), mantém tudo — comportamento inalterado.
 export function itemsForMinigame(items, def) {
-  return items.filter((it) =>
+  const filtered = items.filter((it) =>
     def.requiredFields.every((f) => it[f] !== undefined && it[f] !== null && it[f] !== '')
   );
+  if (!filtered.some((it) => typeof it.fame === 'number')) return filtered;
+  const sorted = [...filtered].sort((a, b) => (b.fame ?? 0) - (a.fame ?? 0));
+  return sorted.slice(0, GENERAL_KNOWLEDGE_TOP);
 }
 
 // Escolhe N "distratores" determinísticos de um conjunto de valores, != correto.
@@ -28,6 +37,30 @@ function pickDistractors(values, correct, n, seed) {
   const uniq = [...new Set(values)].filter((v) => v !== correct);
   return seededShuffle(uniq, seed).slice(0, n);
 }
+
+// ---- Helpers de dica -------------------------------------------------------
+function roman(n) {
+  const map = [
+    ['M', 1000], ['CM', 900], ['D', 500], ['CD', 400], ['C', 100], ['XC', 90],
+    ['L', 50], ['XL', 40], ['X', 10], ['IX', 9], ['V', 5], ['IV', 4], ['I', 1],
+  ];
+  let s = '';
+  let x = n;
+  for (const [sym, v] of map) while (x >= v) { s += sym; x -= v; }
+  return s || 'I';
+}
+function century(year) {
+  return `século ${roman(Math.ceil(Math.abs(year) / 100))}${year < 0 ? ' a.C.' : ''}`;
+}
+function decade(year) {
+  return year < 0 ? century(year) : `década de ${Math.floor(year / 10) * 10}`;
+}
+function windowOf(year, span) {
+  if (year < 0) return century(year);
+  const lo = Math.floor(year / span) * span;
+  return `entre ${lo} e ${lo + span}`;
+}
+const firstLetter = (s) => (s ? s.trim()[0].toUpperCase() : '?');
 
 // ----------------------------------------------------------------------------
 
@@ -43,7 +76,6 @@ export const MINIGAMES = [
     buildRound(_pool, item) {
       return { kind: 'whenLaunched', item };
     },
-    // input: { guess: number }
     evaluate(round, input) {
       const guess = Number(input.guess);
       const error = Math.abs(guess - round.item.year);
@@ -53,6 +85,16 @@ export const MINIGAMES = [
         correctText: String(round.item.year),
         detail: `Você chutou ${guess} — diferença de ${error} ano(s).`,
       };
+    },
+    hints(round) {
+      const it = round.item;
+      const ctx = [it.category, it.country].filter(Boolean).join(' · ') || '—';
+      return [
+        `Contexto: ${ctx}`,
+        `Foi no ${century(it.year)}`,
+        `Foi ${windowOf(it.year, 40)}`,
+        `Foi na ${decade(it.year)}`,
+      ];
     },
   },
 
@@ -74,7 +116,6 @@ export const MINIGAMES = [
       const pair = seededShuffle([item, opp], seed); // ordem visual reproduzível
       return { kind: 'higherLower', a: pair[0], b: pair[1], metricType: item.metricType };
     },
-    // input: { choice: 'a' | 'b' }
     evaluate(round, input) {
       const chosen = input.choice === 'a' ? round.a : round.b;
       const other = input.choice === 'a' ? round.b : round.a;
@@ -84,10 +125,16 @@ export const MINIGAMES = [
         answer: { correct },
         correct,
         correctText: (round.a.metric >= round.b.metric ? round.a : round.b).name,
-        detail: `${round.a.name}: ${fmt(round.a.metric)} vs ${round.b.name}: ${fmt(
-          round.b.metric
-        )} — ${metricType}.`,
+        detail: `${round.a.name}: ${fmt(round.a.metric)} vs ${round.b.name}: ${fmt(round.b.metric)} — ${metricType}.`,
       };
+    },
+    hints(round) {
+      const mt = round.metricType || 'valor';
+      return [
+        `${round.a.name} (${round.a.country || '?'}) vs ${round.b.name} (${round.b.country || '?'})`,
+        `${round.a.name}: ${fmt(round.a.metric)} ${mt}`,
+        `${round.b.name}: ${fmt(round.b.metric)} ${mt}`,
+      ];
     },
   },
 
@@ -95,17 +142,19 @@ export const MINIGAMES = [
     id: 'whichCountry',
     name: 'De que país é',
     icon: '🌍',
-    blurb: 'Adivinhe o país do item.',
+    blurb: 'Escolha o país certo entre 5 opções.',
     requiredFields: ['name', 'country'],
     scoring: { type: 'binary', basePoints: 1000, useCombo: false },
     timerSeconds: 45,
-    buildRound(pool, item) {
-      // lista pesquisável com todos os países presentes na base (sempre inclui
-      // o correto). O jogador busca e seleciona — sem chute por eliminação.
-      const countries = [...new Set(pool.map((p) => p.country))].sort((a, b) =>
-        a.localeCompare(b, 'pt')
+    buildRound(pool, item, seed) {
+      const distractors = pickDistractors(
+        pool.map((p) => p.country),
+        item.country,
+        COUNTRY_OPTIONS - 1,
+        seed
       );
-      return { kind: 'whichCountry', item, countries };
+      const options = seededShuffle([item.country, ...distractors], seed + 1);
+      return { kind: 'whichCountry', item, options };
     },
     // input: { choice: string (país) }
     evaluate(round, input) {
@@ -116,6 +165,14 @@ export const MINIGAMES = [
         correctText: round.item.country,
         detail: correct ? 'Acertou o país!' : `Era ${round.item.country}.`,
       };
+    },
+    hints(round) {
+      const it = round.item;
+      return [
+        `Categoria: ${it.category || '—'}`,
+        `O país começa com "${firstLetter(it.country)}"`,
+        `O nome do país tem ${it.country.length} letras`,
+      ];
     },
   },
 
@@ -137,10 +194,9 @@ export const MINIGAMES = [
       const options = seededShuffle([item.name, ...distractors], seed + 1);
       return { kind: 'guessImage', item, options, steps: GUESS_IMAGE_STEPS };
     },
-    // input: { choice: string, revealStep: number }  (revealStep = nível revelado ao chutar)
+    // input: { choice: string, revealStep: number }
     evaluate(round, input) {
       const correct = input.choice === round.item.name;
-      // proximidade: menos revelação usada => menos erro => mais pontos.
       const error = correct ? input.revealStep : GUESS_IMAGE_STEPS + 1;
       return {
         answer: { error },
@@ -150,6 +206,14 @@ export const MINIGAMES = [
           ? `Acertou com ${input.revealStep}/${GUESS_IMAGE_STEPS} revelações.`
           : `Era ${round.item.name}.`,
       };
+    },
+    hints(round) {
+      const it = round.item;
+      const out = [`Categoria: ${it.category || '—'}`];
+      if (it.country) out.push(`País: ${it.country}`);
+      if (it.year) out.push(`Época: ${decade(it.year)}`);
+      out.push(`Começa com "${firstLetter(it.name)}"`);
+      return out;
     },
   },
 
@@ -184,6 +248,12 @@ export const MINIGAMES = [
         correctText: sorted.map((it) => `${it.name} (${it.year})`).join(' → '),
         detail: correct ? 'Ordem perfeita!' : 'Veja a ordem correta abaixo.',
       };
+    },
+    hints(round) {
+      const ys = round.items.map((i) => i.year);
+      const out = [`Período: de ${Math.min(...ys)} a ${Math.max(...ys)}`];
+      for (const it of round.items.slice(0, 2)) out.push(`${it.name}: ${it.year}`);
+      return out;
     },
   },
 ];

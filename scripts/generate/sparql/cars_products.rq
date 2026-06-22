@@ -3,10 +3,11 @@
 # Fatiado por faixa de ano (__MIN__/__MAX__). País/código são OPCIONAIS para
 # manter o cruzamento obrigatório barato (só tipo + imagem + data) e não estourar
 # o timeout do WDQS.
-SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
+SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode ?sitelinks WHERE {
   ?item wdt:P31 wd:Q3231690 ;        # instância de modelo de automóvel
         wdt:P18 ?image ;
-        wdt:P571 ?inception .
+        wdt:P571 ?inception ;
+        wikibase:sitelinks ?sitelinks .   # notoriedade (nº de Wikipédias)
   BIND(YEAR(?inception) AS ?year)
   FILTER(?year >= __MIN__ && ?year < __MAX__)
   OPTIONAL {

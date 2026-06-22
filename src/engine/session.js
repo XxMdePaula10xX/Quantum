@@ -3,7 +3,7 @@
 
 import { itemsForMinigame, roundSeed } from '../minigames/registry.js';
 import { dailyItems, ROUNDS_PER_DAY } from './dailyQueue.js';
-import { scoreRound, timeBonusScore } from './scoring.js';
+import { scoreRound, timeBonusScore, applyHintPenalty } from './scoring.js';
 
 export const FORMATS = {
   daily: { id: 'daily', name: 'Diário', ranked: true },
@@ -42,7 +42,9 @@ export function makeRandomRound(def, items, rnd = Math.random()) {
  */
 export function resolveRound(def, round, input, ctx = {}) {
   const result = def.evaluate(round.data, input);
-  const basePoints = scoreRound(def.scoring, result.answer, { combo: ctx.combo ?? 0 });
+  const raw = scoreRound(def.scoring, result.answer, { combo: ctx.combo ?? 0 });
+  // penalidade por dicas pagas (mesmo cálculo no servidor, via input.hintsUsed)
+  const basePoints = applyHintPenalty(raw, input.hintsUsed ?? 0);
 
   // combo só existe em minigames binários com useCombo
   let nextCombo = ctx.combo ?? 0;

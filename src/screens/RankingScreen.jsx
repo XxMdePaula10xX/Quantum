@@ -9,15 +9,21 @@ export default function RankingScreen({ onBack }) {
   const [minigameId, setMinigameId] = useState(MINIGAMES[0].id);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const date = todayKey();
 
   useEffect(() => {
     if (!FIREBASE_ENABLED) return;
     let alive = true;
     setLoading(true);
+    setError('');
     const p = tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId);
     p.then((r) => alive && setRows(r))
-      .catch(() => alive && setRows([]))
+      .catch((e) => {
+        if (!alive) return;
+        setRows([]);
+        setError(e?.message || 'Falha ao ler o ranking.');
+      })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -55,6 +61,8 @@ export default function RankingScreen({ onBack }) {
         </div>
       ) : loading ? (
         <p className="muted center">Carregando…</p>
+      ) : error ? (
+        <div className="banner">⚠️ {error}</div>
       ) : rows.length === 0 ? (
         <p className="muted center">Sem pontuações ainda. Seja o primeiro!</p>
       ) : (

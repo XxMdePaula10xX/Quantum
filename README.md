@@ -29,7 +29,7 @@ Login e ranking global são opcionais e exigem Firebase (veja abaixo).
 |---|---|---|
 | 📅 QuandoLançou | Vê a imagem, chuta o ano | Proximidade |
 | ⚖️ Maior ou menor | Escolhe o número maior | Binário + combo |
-| 🌍 De que país é | Adivinha o país (busca em lista) | Binário |
+| 🌍 De que país é | Adivinha o país (5 opções) | Binário |
 | 🖼️ Adivinhe pela imagem | Imagem revela aos poucos, adivinha o nome | Proximidade (revelação) |
 | ⏳ Linha do tempo | Ordena por ano | Ordenação por pares |
 
@@ -48,6 +48,17 @@ Todos compartilham **um único motor** (`src/engine`) e **um registro**
 Matemática fixa e determinística em `src/engine/scoring.js` (teto de 1000/rodada
 antes de combo/tempo). As **mesmas funções** rodam no cliente e no servidor.
 Cobertas por testes (`npm test`).
+
+### Dicas e dificuldade
+
+- **Dicas**: todo minigame oferece dicas relacionadas ao item. A 1ª aparece na
+  tela **de graça**; cada dica extra pedida reduz **20%** dos pontos da rodada
+  (penalidade recalculada igual no servidor via `input.hintsUsed`).
+- **Conhecimento geral**: a base traz `fame` (nº de Wikipédias do item =
+  notoriedade). `itemsForMinigame` prioriza os itens mais conhecidos e limita a
+  `GENERAL_KNOWLEDGE_TOP` (5000), deixando o jogo menos obscuro. Sem `fame`
+  (base antiga), o comportamento é o de antes. Ordenação estável => o diário
+  continua determinístico entre cliente e servidor.
 
 ---
 

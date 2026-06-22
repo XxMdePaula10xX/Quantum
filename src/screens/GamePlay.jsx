@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { VIEWS } from '../minigames/components/views.jsx';
 import { useGameSession } from '../formats/useGameSession.js';
 import GameHeader from '../components/GameHeader.jsx';
 import { saveDailyResult, setBest } from '../state/storage.js';
 
-const TIMER_FEEDBACK_MS = 1100;
+const TIMER_FEEDBACK_MS = 800;
 
 // UI de uma partida em andamento. Só é montado depois do tutorial e com o
 // `pool` (base do minigame) já carregado.
@@ -14,12 +14,22 @@ export default function GamePlay({ def, format, pool, date, onExit, onFinish, on
   const finishedRef = useRef(false);
   const { phase, lastResult, breakdown, totalScore } = session;
 
+  // Dicas reveladas (pagas) na rodada atual; zera ao trocar de rodada.
+  const [hintsUsed, setHintsUsed] = useState(0);
+  useEffect(() => setHintsUsed(0), [session.index]);
+  const hints = def.hints && session.current ? def.hints(session.current.data) : [];
+
   // Modo timer: mostra feedback breve e avança sozinho.
+  // IMPORTANTE: usar ref para `next` e depender só de [format, phase] — senão o
+  // tick do cronômetro (100ms) re-cria o efeito e reseta o timeout, e a rodada
+  // nunca avança (bug relatado: timer rolava até zerar após responder).
+  const nextRef = useRef(session.next);
+  nextRef.current = session.next;
   useEffect(() => {
     if (format !== 'timer' || phase !== 'answered') return undefined;
-    const t = setTimeout(() => session.next(), TIMER_FEEDBACK_MS);
+    const t = setTimeout(() => nextRef.current(), TIMER_FEEDBACK_MS);
     return () => clearTimeout(t);
-  }, [format, phase, session]);
+  }, [format, phase]);
 
   // Encerramento: persiste e devolve o resultado (uma única vez).
   useEffect(() => {
@@ -50,12 +60,33 @@ export default function GamePlay({ def, format, pool, date, onExit, onFinish, on
   }
 
   const showFeedback = phase === 'answered' && lastResult;
+  // injeta as dicas pagas usadas no input enviado (entra na pontuação e é
+  // recalculada igual no servidor).
+  const submitWithHints = (input) => session.submit({ ...input, hintsUsed });
+  const paidShown = Math.min(hintsUsed, Math.max(0, hints.length - 1));
 
   return (
     <div className="app">
       <GameHeader session={session} def={def} onExit={onExit} onHelp={onHelp} />
 
-      <View round={session.current.data} onSubmit={session.submit} answered={phase === 'answered'} feedback={lastResult} />
+      <View round={session.current.data} onSubmit={submitWithHints} answered={phase === 'answered'} feedback={lastResult} />
+
+      {hints.length > 0 && phase === 'playing' && (
+        <div className="hints">
+          {/* dica gratuita (sempre visível, não tira pontos) */}
+          <div className="hint free">💡 {hints[0]}</div>
+          {/* dicas pagas reveladas */}
+          {hints.slice(1, 1 + paidShown).map((h, i) => (
+            <div className="hint paid" key={i}>🔎 {h}</div>
+          ))}
+          {/* botão para pedir a próxima dica paga */}
+          {paidShown < hints.length - 1 && (
+            <button className="btn ghost small block" onClick={() => setHintsUsed((n) => n + 1)}>
+              Pedir dica (−20% nos pontos) · {paidShown + 1}/{hints.length - 1}
+            </button>
+          )}
+        </div>
+      )}
 
       {showFeedback && (
         <div className={`feedback ${lastResult.correct ? 'good' : 'bad'}`}>

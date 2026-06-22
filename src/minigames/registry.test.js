@@ -45,14 +45,53 @@ describe('higherLower', () => {
 });
 
 describe('whichCountry', () => {
-  it('lista pesquisável com todos os países (inclui o correto, sem duplicar)', () => {
+  it('monta 5 opções incluindo a correta, sem duplicar', () => {
     const def = getMinigame('whichCountry');
     const round = def.buildRound(pool, pool[0], 7);
-    expect(round.countries).toContain('Brasil');
-    expect(new Set(round.countries).size).toBe(round.countries.length);
-    const { correct } = def.evaluate(round, { choice: 'Brasil' });
-    expect(correct).toBe(true);
+    expect(round.options).toContain('Brasil');
+    expect(round.options.length).toBeLessThanOrEqual(5);
+    expect(new Set(round.options).size).toBe(round.options.length);
+    expect(def.evaluate(round, { choice: 'Brasil' }).correct).toBe(true);
     expect(def.evaluate(round, { choice: 'França' }).correct).toBe(false);
+  });
+});
+
+describe('dicas (hints)', () => {
+  it('todo minigame oferece dicas; a 1ª é grátis', () => {
+    for (const id of ['whenLaunched', 'higherLower', 'whichCountry', 'guessImage', 'timeline']) {
+      const def = getMinigame(id);
+      const round = def.buildRound(pool, pool[0], 3);
+      const hints = def.hints(round);
+      expect(Array.isArray(hints)).toBe(true);
+      expect(hints.length).toBeGreaterThanOrEqual(2); // 1 grátis + >=1 paga
+      expect(typeof hints[0]).toBe('string');
+    }
+  });
+
+  it('a dica de país não revela o país correto no "De que país é"', () => {
+    const def = getMinigame('whichCountry');
+    const round = def.buildRound(pool, pool[0], 1); // país = Brasil
+    const free = def.hints(round)[0];
+    expect(free.includes('Brasil')).toBe(false);
+  });
+});
+
+describe('dificuldade por fame (conhecimento geral)', () => {
+  it('com fame, prioriza os mais conhecidos e limita o tamanho', () => {
+    const big = Array.from({ length: 20 }, (_, i) => ({
+      id: `F${i}`, name: `n${i}`, year: 2000, fame: i, // fame crescente
+    }));
+    const def = getMinigame('timeline');
+    const out = itemsForMinigame(big, def);
+    // ordenado por fame desc => primeiro é o de maior fame
+    expect(out[0].fame).toBe(19);
+    expect(out[out.length - 1].fame).toBeLessThan(out[0].fame);
+  });
+
+  it('sem fame, mantém todos (comportamento antigo)', () => {
+    const def = getMinigame('timeline');
+    const out = itemsForMinigame(pool, def);
+    expect(out.length).toBe(pool.length);
   });
 });
 
