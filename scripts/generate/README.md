@@ -42,8 +42,17 @@ $env:MAX_PER_QUERY=40000; $env:PER_CHUNK=10000; npm run data:build
    countryCode, metric, metricType, category`).
 3. Para cada imagem, busca `license` e `author` no Commons (módulo `imageinfo`,
    `extmetadata`) — obrigatório para CC-BY (PRD §9).
-4. Deduplica por `id`, embaralha (determinístico) e escreve `items.json`.
-5. Reporta o **fôlego** por minigame (alvo ≥ 2.000 itens — PRD §3).
+4. **Filtro de licença**: descarta imagens sem licença livre confirmada
+   (mantém domínio público / CC0 / CC BY / CC BY-SA / GFDL; rejeita NC, ND,
+   copyright e `desconhecida`). O item continua na base (pode servir minigames
+   sem imagem); só a imagem/licença/autor são removidas. Itens que ficam sem
+   nenhum uso são descartados. Para pular o filtro (debug): `ALLOW_NONFREE=1`.
+5. Deduplica por `id`, embaralha (determinístico) e escreve `items.json`.
+6. Reporta o **fôlego** por minigame (alvo ≥ 2.000 itens — PRD §3).
+
+> Após o filtro, os minigames com imagem (QuandoLançou, Adivinhe pela imagem)
+> podem encolher — é esperado e legalmente necessário. Se algum ficar `BAIXO`,
+> amplie a query correspondente.
 
 O script **sobrescreve** `src/data/items.json` (a base ATIVA do app). Não é
 preciso editar mais nada: app e Cloud Function já importam esse arquivo. Para

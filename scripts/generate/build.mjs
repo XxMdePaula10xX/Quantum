@@ -122,7 +122,23 @@ function bindingToItem(b, q) {
   return item;
 }
 
+// Decide se uma licença é LIVRE para uso comercial (com ou sem atribuição):
+// domínio público / CC0 / CC BY / CC BY-SA (+ GFDL / Free Art). Rejeita
+// não-comercial (NC), sem-derivados (ND), copyright e "desconhecida".
+function isFreeLicense(text) {
+  const t = (text || '').toLowerCase();
+  if (!t.trim()) return false;
+  // CC BY e CC BY-SA (a negativa exclui CC BY-NC e CC BY-ND)
+  if (/cc[ -]?by(?![ -]?n)/.test(t)) return true;
+  // domínio público / sem restrições
+  if (/\bcc0\b|public domain|\bpdm\b|\bpd[- ]|no restrictions|sem restri/.test(t)) return true;
+  // outras licenças livres comuns no Commons
+  if (/gfdl|free art|\bfal\b/.test(t)) return true;
+  return false;
+}
+
 // Licença e autor da imagem (obrigatório para CC-BY; PRD seção 9).
+// Retorna também `free`: se a imagem pode ser usada (senão é descartada).
 async function imageLicense(imageUrl) {
   const fname = decodeURIComponent(imageUrl.split('/').pop()).replace(/_/g, ' ');
   const params = new URLSearchParams({
@@ -139,12 +155,17 @@ async function imageLicense(imageUrl) {
     const pages = json.query?.pages || {};
     const page = Object.values(pages)[0];
     const meta = page?.imageinfo?.[0]?.extmetadata || {};
+    const shortName = meta.LicenseShortName?.value || '';
+    const machine = meta.License?.value || '';
+    const notCopyrighted = meta.Copyrighted?.value === 'False'; // domínio público
+    const free = notCopyrighted || isFreeLicense(`${machine} ${shortName}`);
     return {
-      license: meta.LicenseShortName?.value || 'desconhecida',
+      license: shortName || machine || 'desconhecida',
       author: (meta.Artist?.value || '—').replace(/<[^>]+>/g, '').trim(),
+      free,
     };
   } catch {
-    return { license: 'desconhecida', author: '—' };
+    return { license: 'desconhecida', author: '—', free: false };
   }
 }
 
@@ -239,9 +260,10 @@ async function main() {
   async function worker() {
     while (cursor < withImages.length) {
       const it = withImages[cursor++];
-      const { license, author } = await imageLicense(it.image);
+      const { license, author, free } = await imageLicense(it.image);
       it.license = license;
       it.author = author;
+      it._free = free;
       if (++done % 100 === 0 || done === withImages.length) {
         process.stdout.write(`\r  ${done}/${withImages.length}`);
       }
@@ -249,6 +271,32 @@ async function main() {
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   console.log('');
+
+  // Filtro de licença (PRD seção 9): descarta imagens sem licença livre
+  // confirmada. O ITEM permanece (pode servir minigames sem imagem), apenas a
+  // imagem/licença/autor são removidas. Use ALLOW_NONFREE=1 para pular (debug).
+  const allowNonFree = process.env.ALLOW_NONFREE === '1';
+  let droppedImages = 0;
+  for (const it of withImages) {
+    if (!allowNonFree && !it._free) {
+      delete it.image;
+      delete it.license;
+      delete it.author;
+      droppedImages++;
+    }
+    delete it._free;
+  }
+  console.log(
+    `→ filtro de licença: ${withImages.length - droppedImages} imagens livres mantidas, ` +
+      `${droppedImages} descartadas${allowNonFree ? ' (IGNORADO: ALLOW_NONFREE=1)' : ''}.`
+  );
+
+  // Remove itens que, sem a imagem, não servem a NENHUM minigame.
+  const qualifiesAny = (it) =>
+    Object.values(REQUIRED).some((fields) => fields.every((f) => it[f] != null && it[f] !== ''));
+  const before = items.length;
+  items = items.filter(qualifiesAny);
+  if (before !== items.length) console.log(`→ removidos ${before - items.length} itens sem uso após o filtro.`);
 
   items = shuffle(items, 0x9e3779b9);
 
