@@ -137,36 +137,60 @@ function isFreeLicense(text) {
   return false;
 }
 
-// Licença e autor da imagem (obrigatório para CC-BY; PRD seção 9).
-// Retorna também `free`: se a imagem pode ser usada (senão é descartada).
-async function imageLicense(imageUrl) {
-  const fname = decodeURIComponent(imageUrl.split('/').pop()).replace(/_/g, ' ');
+// Nome do arquivo Commons ('File:...') a partir da URL de imagem (P18).
+function fileTitle(imageUrl) {
+  return 'File:' + decodeURIComponent(imageUrl.split('/').pop());
+}
+
+// Consulta em LOTE ao Commons (até 50 arquivos por requisição) — muito mais
+// rápido e confiável que 1 requisição por imagem (evita throttle). POST + retry.
+async function commonsBatch(titles, attempt = 0) {
   const params = new URLSearchParams({
     action: 'query',
-    titles: `File:${fname}`,
+    titles: titles.join('|'),
     prop: 'imageinfo',
     iiprop: 'extmetadata',
+    redirects: '1',
     format: 'json',
     origin: '*',
   });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch(`${COMMONS}?${params}`, { headers: { 'User-Agent': UA } });
-    const json = await res.json();
-    const pages = json.query?.pages || {};
-    const page = Object.values(pages)[0];
-    const meta = page?.imageinfo?.[0]?.extmetadata || {};
-    const shortName = meta.LicenseShortName?.value || '';
-    const machine = meta.License?.value || '';
-    const notCopyrighted = meta.Copyrighted?.value === 'False'; // domínio público
-    const free = notCopyrighted || isFreeLicense(`${machine} ${shortName}`);
-    return {
-      license: shortName || machine || 'desconhecida',
-      author: (meta.Artist?.value || '—').replace(/<[^>]+>/g, '').trim(),
-      free,
-    };
-  } catch {
-    return { license: 'desconhecida', author: '—', free: false };
+    const res = await fetch(COMMONS, {
+      method: 'POST',
+      headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+      signal: controller.signal,
+    });
+    if (res.status === 429 || res.status >= 500) {
+      throw Object.assign(new Error(`HTTP ${res.status}`), { transient: true });
+    }
+    if (!res.ok) throw new Error(`Commons HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    const transient = e.transient || e.name === 'AbortError' || e.code === 'ECONNRESET';
+    if (transient && attempt < 4) {
+      await sleep(3000 * 2 ** attempt);
+      return commonsBatch(titles, attempt + 1);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+// Extrai licença/autor/free de uma "page" da resposta do Commons.
+function licenseFromPage(page) {
+  const meta = page?.imageinfo?.[0]?.extmetadata || {};
+  const shortName = meta.LicenseShortName?.value || '';
+  const machine = meta.License?.value || '';
+  const free = meta.Copyrighted?.value === 'False' || isFreeLicense(`${machine} ${shortName}`);
+  return {
+    license: shortName || machine || 'desconhecida',
+    author: (meta.Artist?.value || '—').replace(/<[^>]+>/g, '').trim(),
+    free,
+  };
 }
 
 function mulberry32(seed) {
@@ -251,25 +275,55 @@ async function main() {
 
   let items = [...all.values()];
 
-  // Enriquece licença/autor das imagens (em paralelo, com limite de conexões).
+  // Enriquece licença/autor das imagens em LOTES de 50 (vários lotes em
+  // paralelo). Casa cada "page" de volta ao item, seguindo normalizações e
+  // redirecionamentos de título que o Commons aplica.
   const withImages = items.filter((it) => it.image);
-  const CONCURRENCY = 10;
-  console.log(`→ buscando licença de ${withImages.length} imagens no Commons (${CONCURRENCY} em paralelo)…`);
+  const BATCH = 50;
+  const PARALLEL = 4;
+  const batches = [];
+  for (let i = 0; i < withImages.length; i += BATCH) batches.push(withImages.slice(i, i + BATCH));
+  console.log(`→ licenças de ${withImages.length} imagens no Commons (${batches.length} lotes de ${BATCH})…`);
+
   let done = 0;
   let cursor = 0;
   async function worker() {
-    while (cursor < withImages.length) {
-      const it = withImages[cursor++];
-      const { license, author, free } = await imageLicense(it.image);
-      it.license = license;
-      it.author = author;
-      it._free = free;
-      if (++done % 100 === 0 || done === withImages.length) {
-        process.stdout.write(`\r  ${done}/${withImages.length}`);
+    while (cursor < batches.length) {
+      const group = batches[cursor++];
+      const titleToItems = new Map(); // título solicitado -> itens
+      for (const it of group) {
+        const t = fileTitle(it.image);
+        if (!titleToItems.has(t)) titleToItems.set(t, []);
+        titleToItems.get(t).push(it);
       }
+      let data = null;
+      try {
+        data = await commonsBatch([...titleToItems.keys()]);
+      } catch (e) {
+        console.log(`\n   lote ${cursor}: ${e.message} — itens ficam sem licença`);
+      }
+      if (data?.query) {
+        // mapa reverso título-final -> título-solicitado (normalização/redirect)
+        const back = {};
+        for (const n of data.query.normalized || []) back[n.to] = n.from;
+        for (const r of data.query.redirects || []) back[r.to] = r.from;
+        for (const page of Object.values(data.query.pages || {})) {
+          let req = page.title;
+          while (back[req]) req = back[req];
+          const list = titleToItems.get(req) || titleToItems.get(page.title) || [];
+          const info = licenseFromPage(page);
+          for (const it of list) {
+            it.license = info.license;
+            it.author = info.author;
+            it._free = info.free;
+          }
+        }
+      }
+      done += group.length;
+      process.stdout.write(`\r  ${Math.min(done, withImages.length)}/${withImages.length}`);
     }
   }
-  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  await Promise.all(Array.from({ length: PARALLEL }, worker));
   console.log('');
 
   // Filtro de licença (PRD seção 9): descarta imagens sem licença livre
