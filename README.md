@@ -135,8 +135,10 @@ usar a base real automaticamente.
 
 ## Publicação (PRD §8, Sprint 4)
 
-`npm run build` gera `dist/`. Publique via Firebase Hosting (`firebase deploy
---only hosting`) ou empacote para as lojas via Codemagic (mesmo fluxo do PRD).
+`npm run build` gera `dist/` (web). Para **app de loja**, o projeto já tem
+**Capacitor** (`android/`, `capacitor.config.json`) + **Codemagic**
+(`codemagic.yaml`). Passo a passo completo em **[PUBLISH.md](PUBLISH.md)** —
+inclui APK de teste, assinatura e envio à Play Store.
 
 ---
 
