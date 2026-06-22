@@ -1,10 +1,8 @@
-// Autenticação (PRD seção 7): Google e e-mail/senha. Login é OPCIONAL para
-// jogar e OBRIGATÓRIO para entrar no ranking global.
+// Autenticação (PRD seção 7): e-mail/senha. Login é OPCIONAL para jogar e
+// OBRIGATÓRIO para entrar no ranking global.
 import { app, FIREBASE_ENABLED } from './config.js';
 import {
   getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as fbSignOut,
@@ -19,12 +17,6 @@ export function onAuth(cb) {
     return () => {};
   }
   return onAuthStateChanged(auth, cb);
-}
-
-export async function loginWithGoogle() {
-  if (!auth) throw new Error('Firebase não configurado');
-  const { user } = await signInWithPopup(auth, new GoogleAuthProvider());
-  return user;
 }
 
 export async function loginWithEmail(email, password) {

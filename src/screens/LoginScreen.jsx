@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
-import { loginWithGoogle, loginWithEmail, registerWithEmail, signOut } from '../firebase/auth.js';
+import { loginWithEmail, registerWithEmail, signOut } from '../firebase/auth.js';
 
 export default function LoginScreen({ user, onBack }) {
   const [email, setEmail] = useState('');
@@ -39,14 +39,13 @@ export default function LoginScreen({ user, onBack }) {
         </div>
       ) : (
         <>
-          <button className="btn primary block" onClick={() => run(loginWithGoogle)}>Entrar com Google</button>
           <div className="card">
             <label>E-mail</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <label style={{ marginTop: 8 }}>Senha</label>
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
             <button
-              className="btn block"
+              className="btn primary block"
               style={{ marginTop: 12 }}
               onClick={() =>
                 run(() => (mode === 'login' ? loginWithEmail(email, password) : registerWithEmail(email, password)))
