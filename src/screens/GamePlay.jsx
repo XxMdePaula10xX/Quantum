@@ -69,7 +69,16 @@ export default function GamePlay({ def, format, pool, date, onExit, onFinish, on
     <div className="app">
       <GameHeader session={session} def={def} onExit={onExit} onHelp={onHelp} />
 
-      <View round={session.current.data} onSubmit={submitWithHints} answered={phase === 'answered'} feedback={lastResult} />
+      {/* key={session.index}: remonta a view a cada rodada, zerando o estado
+          interno (ordem da linha do tempo, revelação da imagem, etc.) e evitando
+          render com dados da rodada anterior. */}
+      <View
+        key={session.index}
+        round={session.current.data}
+        onSubmit={submitWithHints}
+        answered={phase === 'answered'}
+        feedback={lastResult}
+      />
 
       {hints.length > 0 && phase === 'playing' && (
         <div className="hints">

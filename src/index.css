@@ -105,9 +105,15 @@ body::after {
   background: var(--glass);
   backdrop-filter: blur(8px);
   cursor: pointer;
+  /* manipulation: remove o atraso de 300ms e o duplo-toque no mobile */
+  touch-action: manipulation;
   transition: transform 0.12s ease, background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
-.btn:hover { background: var(--glass-strong); transform: translateY(-1px); }
+/* hover só em dispositivos com mouse (evita o "toque duplo" no celular) */
+@media (hover: hover) {
+  .btn:hover { background: var(--glass-strong); transform: translateY(-1px); }
+  .btn.primary:hover { box-shadow: 0 16px 34px -10px rgba(180, 107, 255, 0.85); }
+}
 .btn:active { transform: translateY(0) scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: default; transform: none; }
 
@@ -117,7 +123,6 @@ body::after {
   color: #0a0d1f;
   box-shadow: 0 12px 28px -10px rgba(108, 140, 255, 0.8);
 }
-.btn.primary:hover { box-shadow: 0 16px 34px -10px rgba(180, 107, 255, 0.85); }
 .btn.ghost { background: transparent; border-color: var(--stroke); }
 .btn.small { padding: 8px 14px; font-size: 13px; }
 .btn.block { width: 100%; }
@@ -156,8 +161,10 @@ body::after {
   background: var(--grad-soft);
   opacity: 0; transition: opacity 0.25s;
 }
-.game-card:hover { transform: translateY(-3px); border-color: rgba(180,107,255,0.4); }
-.game-card:hover::before { opacity: 1; }
+@media (hover: hover) {
+  .game-card:hover { transform: translateY(-3px); border-color: rgba(180,107,255,0.4); }
+  .game-card:hover::before { opacity: 1; }
+}
 .game-card > * { position: relative; }
 .game-card .icon {
   font-size: 30px; width: 54px; height: 54px;

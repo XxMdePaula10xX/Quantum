@@ -45,6 +45,15 @@ export async function resetPassword(email) {
   await sendPasswordResetEmail(auth, email);
 }
 
+// Atualiza o apelido (displayName) de quem já está logado. Reflete no ranking
+// nos próximos envios (refresh do token para o claim `name`).
+export async function updateNickname(displayName) {
+  if (!auth || !auth.currentUser) throw new Error('Você não está conectado.');
+  await updateProfile(auth.currentUser, { displayName });
+  await auth.currentUser.getIdToken(true);
+  return auth.currentUser;
+}
+
 export async function signOut() {
   if (auth) await fbSignOut(auth);
 }

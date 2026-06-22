@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
-import { loginWithEmail, registerWithEmail, resetPassword, signOut } from '../firebase/auth.js';
+import { loginWithEmail, registerWithEmail, resetPassword, signOut, updateNickname } from '../firebase/auth.js';
 
 export default function LoginScreen({ user, onBack }) {
   const [email, setEmail] = useState('');
@@ -62,10 +62,7 @@ export default function LoginScreen({ user, onBack }) {
           preencha as chaves para ativar login e ranking.
         </div>
       ) : user ? (
-        <div className="card">
-          <p>Conectado como <strong>{user.displayName || user.email}</strong>.</p>
-          <button className="btn block" onClick={() => run(signOut)}>Sair da conta</button>
-        </div>
+        <Profile user={user} run={run} setError={setError} setInfo={setInfo} />
       ) : (
         <div className="card">
           {mode === 'register' && (
@@ -113,6 +110,43 @@ export default function LoginScreen({ user, onBack }) {
 
       {info && <div className="banner">{info}</div>}
       {error && <div className="banner" style={{ borderColor: 'rgba(255,122,138,0.5)' }}>{error}</div>}
+    </div>
+  );
+}
+
+// Perfil de quem está logado: vê e edita o apelido (nome do ranking).
+function Profile({ user, run, setError, setInfo }) {
+  const [nick, setNick] = useState(user.displayName || '');
+  const save = () => {
+    if (nick.trim().length < 2) {
+      setError('Escolha um apelido com pelo menos 2 caracteres.');
+      setInfo('');
+      return;
+    }
+    run(
+      async () => {
+        await updateNickname(nick.trim());
+        setInfo('Apelido atualizado! Já vale para os próximos envios ao ranking.');
+      },
+      { keepOpen: true }
+    );
+  };
+  return (
+    <div className="card">
+      <p style={{ marginTop: 0 }}>Conectado: <strong>{user.email}</strong></p>
+      <label>Seu apelido (aparece no ranking)</label>
+      <div className="row">
+        <input type="text" value={nick} maxLength={20} onChange={(e) => setNick(e.target.value)} placeholder="ex.: matheus_p" />
+        <button className="btn primary small" onClick={save}>Salvar</button>
+      </div>
+      {!user.displayName && (
+        <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>
+          Você ainda não tem apelido — escolha um para aparecer no ranking.
+        </p>
+      )}
+      <button className="btn ghost block" style={{ marginTop: 12 }} onClick={() => run(signOut)}>
+        Sair da conta
+      </button>
     </div>
   );
 }

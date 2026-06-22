@@ -179,6 +179,7 @@ export function TimelineView({ round, onSubmit, answered }) {
       <p className="center muted">Ordene do <strong>mais antigo</strong> (topo) ao <strong>mais recente</strong>.</p>
       {order.map((id, i) => {
         const it = byId.get(id);
+        if (!it) return null; // proteção contra estado defasado
         return (
           <div className="timeline-item" key={id}>
             <span>{it.name}{answered ? ` (${it.year})` : ''}</span>
