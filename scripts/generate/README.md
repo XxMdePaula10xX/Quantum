@@ -54,9 +54,26 @@ $env:MAX_PER_QUERY=40000; $env:PER_CHUNK=10000; npm run data:build
 > podem encolher — é esperado e legalmente necessário. Se algum ficar `BAIXO`,
 > amplie a query correspondente.
 
-O script **sobrescreve** `src/data/items.json` (a base ATIVA do app). Não é
-preciso editar mais nada: app e Cloud Function já importam esse arquivo. Para
-voltar à base de exemplo, copie `items.sample.json` por cima de `items.json`.
+O script **sobrescreve** `src/data/items.json` (a base ATIVA) e, em seguida,
+chama `split.mjs` para separá-la por minigame. Não é preciso editar mais nada.
+Para voltar à base de exemplo, copie `items.sample.json` por cima de `items.json`
+e rode `npm run data:split`.
+
+## Separação por minigame (`split.mjs`)
+
+Para o app carregar leve, `split.mjs` lê `items.json` e gera:
+`src/data/mg/<minigame>.json` (pools por minigame, campos enxutos),
+`src/data/mg/credits.json` (créditos da tela de Fontes) e `src/data/meta.json`.
+Esses arquivos **não são versionados** — são regenerados automaticamente nos
+hooks `predev`/`prebuild` e no fim de `data:build`. Standalone:
+
+```bash
+npm run data:split    # rápido, sem rede; regenera a partir de items.json
+```
+
+> Como cada arquivo é exatamente `itemsForMinigame(items.json, def)`, o cliente
+> (que usa o arquivo separado) e a Cloud Function (que usa `items.json`)
+> reconstroem o mesmo diário — invariante coberta por testes.
 
 ## Queries (`sparql/`)
 

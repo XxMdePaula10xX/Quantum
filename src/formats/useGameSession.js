@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ITEMS } from '../data/index.js';
 import { FORMATS, makeDailyRounds, makeRandomRound, resolveRound } from '../engine/session.js';
 import { ROUNDS_PER_DAY } from '../engine/dailyQueue.js';
 
@@ -7,14 +6,17 @@ import { ROUNDS_PER_DAY } from '../engine/dailyQueue.js';
 //  - daily:    5 rodadas fixas; ao fim, status 'finished'.
 //  - infinite: rodadas ilimitadas; encerra quando o jogador sai.
 //  - timer:    tempo total (def.timerSeconds); encerra quando zera.
-export function useGameSession(def, format, { date, autoStart = true } = {}) {
+//
+// `pool` é a base JÁ carregada do minigame (carga sob demanda — ver
+// data/index.js loadPool). O componente só monta este hook depois do tutorial
+// e com o pool pronto, então o timer pode começar na montagem.
+export function useGameSession(def, format, { date, pool }) {
   const isDaily = format === 'daily';
   const isTimer = format === 'timer';
   const timeTotal = def.timerSeconds || 60;
-  const [started, setStarted] = useState(autoStart);
 
   const [rounds, setRounds] = useState(() =>
-    isDaily ? makeDailyRounds(def, ITEMS, date) : [makeRandomRound(def, ITEMS)]
+    isDaily ? makeDailyRounds(def, pool, date) : [makeRandomRound(def, pool)]
   );
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState('playing'); // playing | answered | finished
@@ -30,9 +32,9 @@ export function useGameSession(def, format, { date, autoStart = true } = {}) {
 
   const current = rounds[index];
 
-  // Contagem regressiva do modo timer (só após started — não corre durante o tutorial).
+  // Contagem regressiva do modo timer.
   useEffect(() => {
-    if (!isTimer || !started || phase === 'finished') return undefined;
+    if (!isTimer || phase === 'finished') return undefined;
     const t = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 0.1) {
@@ -44,9 +46,7 @@ export function useGameSession(def, format, { date, autoStart = true } = {}) {
       });
     }, 100);
     return () => clearInterval(t);
-  }, [isTimer, started, phase]);
-
-  const start = useCallback(() => setStarted(true), []);
+  }, [isTimer, phase]);
 
   const submit = useCallback(
     (input) => {
@@ -93,17 +93,15 @@ export function useGameSession(def, format, { date, autoStart = true } = {}) {
       setPhase('finished');
       return;
     }
-    setRounds((r) => [...r, makeRandomRound(def, ITEMS)]);
+    setRounds((r) => [...r, makeRandomRound(def, pool)]);
     setIndex((i) => i + 1);
     setPhase('playing');
-  }, [isDaily, isTimer, index, def]);
+  }, [isDaily, isTimer, index, def, pool]);
 
   const finish = useCallback(() => setPhase('finished'), []);
 
   return {
     formatInfo: FORMATS[format],
-    started,
-    start,
     current,
     index,
     roundNumber: index + 1,

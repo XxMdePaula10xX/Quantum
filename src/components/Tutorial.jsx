@@ -3,13 +3,14 @@ import { MINIGAME_HOWTO, FORMAT_RULES } from '../minigames/tutorials.js';
 
 // Mini-tutorial mostrado ao iniciar cada modo de jogo: como jogar o minigame
 // + regras do formato + dica de pontuação. Botão grande "Começar".
-export default function Tutorial({ def, format, onStart, onExit }) {
+// `overlay`: renderiza por cima da partida (botão "?"), sem desmontá-la.
+export default function Tutorial({ def, format, onStart, onExit, overlay = false, startLabel = 'Começar ▶' }) {
   const [dontShow, setDontShow] = useState(false);
   const howto = MINIGAME_HOWTO[def.id];
   const fmt = FORMAT_RULES[format];
 
   return (
-    <div className="app tutorial-screen">
+    <div className={overlay ? 'tut-overlay' : 'app tutorial-screen'}>
       <div className="tut-card pop-in">
         <button className="btn ghost small tut-close" onClick={onExit} aria-label="Sair">✕</button>
 
@@ -44,7 +45,7 @@ export default function Tutorial({ def, format, onStart, onExit }) {
         </label>
 
         <button className="btn primary block big glow" onClick={() => onStart(dontShow)}>
-          Começar ▶
+          {startLabel}
         </button>
       </div>
     </div>

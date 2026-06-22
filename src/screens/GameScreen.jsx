@@ -1,62 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getMinigame } from '../minigames/registry.js';
-import { VIEWS } from '../minigames/components/views.jsx';
-import { useGameSession } from '../formats/useGameSession.js';
 import { todayKey } from '../engine/dailyQueue.js';
-import GameHeader from '../components/GameHeader.jsx';
+import { loadPool } from '../data/index.js';
 import Tutorial from '../components/Tutorial.jsx';
-import {
-  saveDailyResult,
-  setBest,
-  isTutorialDismissed,
-  setTutorialDismissed,
-} from '../state/storage.js';
+import GamePlay from './GamePlay.jsx';
+import { isTutorialDismissed, setTutorialDismissed } from '../state/storage.js';
 
-const TIMER_FEEDBACK_MS = 1100;
-
+// Orquestra a partida: mostra o tutorial, CARREGA SOB DEMANDA a base do
+// minigame (chunk separado) e só então monta o GamePlay. O tutorial inicial
+// roda antes do GamePlay (o timer não corre durante ele); o botão "?" reabre o
+// tutorial como sobreposição, sem desmontar a partida (não perde o progresso).
 export default function GameScreen({ minigameId, format, onExit, onFinish }) {
   const def = getMinigame(minigameId);
   const date = todayKey();
-  const session = useGameSession(def, format, { date, autoStart: false });
-  const View = VIEWS[minigameId];
-  const finishedRef = useRef(false);
-  const [showTutorial, setShowTutorial] = useState(() => !isTutorialDismissed(minigameId, format));
+  const [started, setStarted] = useState(() => isTutorialDismissed(minigameId, format));
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [pool, setPool] = useState(null);
+  const [error, setError] = useState(null);
 
-  const { phase, lastResult, breakdown, totalScore } = session;
-
-  // Modo timer: mostra feedback breve e avança sozinho.
+  // Pré-carrega a base do minigame (já durante o tutorial).
   useEffect(() => {
-    if (format !== 'timer' || phase !== 'answered') return undefined;
-    const t = setTimeout(() => session.next(), TIMER_FEEDBACK_MS);
-    return () => clearTimeout(t);
-  }, [format, phase, session]);
-
-  // Encerramento: persiste e devolve o resultado (uma única vez).
-  useEffect(() => {
-    if (phase !== 'finished' || finishedRef.current) return;
-    finishedRef.current = true;
-    const pointsPerRound = breakdown.map((b) => b.points);
-    const result = {
-      minigameId,
-      minigameName: def.name,
-      format,
-      date,
-      total: totalScore,
-      pointsPerRound,
-      breakdown,
-      answers: breakdown.map((b) => b.input),
-      timeTotal: session.timeTotal,
+    let alive = true;
+    loadPool(minigameId)
+      .then((p) => alive && setPool(p))
+      .catch((e) => alive && setError(e.message));
+    return () => {
+      alive = false;
     };
-    if (format === 'daily') {
-      saveDailyResult(minigameId, date, result);
-    } else {
-      result.isBest = setBest(format, minigameId, totalScore);
-    }
-    onFinish(result);
-  }, [phase, breakdown, totalScore, def, minigameId, format, date, onFinish]);
+  }, [minigameId]);
 
-  // Tutorial antes de iniciar o modo (timer fica pausado até "Começar").
-  if (showTutorial) {
+  // Tutorial inicial (antes da partida montar).
+  if (!started) {
     return (
       <Tutorial
         def={def}
@@ -64,46 +38,46 @@ export default function GameScreen({ minigameId, format, onExit, onFinish }) {
         onExit={onExit}
         onStart={(dontShow) => {
           if (dontShow) setTutorialDismissed(minigameId, format, true);
-          setShowTutorial(false);
-          session.start();
+          setStarted(true);
         }}
       />
     );
   }
 
-  if (phase === 'finished') {
-    return <div className="app"><p className="center muted">Calculando resultado…</p></div>;
+  if (error) {
+    return (
+      <div className="app">
+        <div className="banner">Não foi possível carregar os dados: {error}</div>
+        <button className="btn ghost block" onClick={onExit}>Voltar ao menu</button>
+      </div>
+    );
   }
 
-  const showFeedback = phase === 'answered' && lastResult;
+  if (!pool) {
+    return <div className="app"><p className="center muted">Carregando {def.name}…</p></div>;
+  }
 
   return (
-    <div className="app">
-      <GameHeader
-        session={session}
+    <>
+      <GamePlay
         def={def}
+        format={format}
+        pool={pool}
+        date={date}
         onExit={onExit}
-        onHelp={format !== 'timer' ? () => setShowTutorial(true) : null}
+        onFinish={onFinish}
+        onHelp={format !== 'timer' ? () => setHelpOpen(true) : null}
       />
-
-      <View round={session.current.data} onSubmit={session.submit} answered={phase === 'answered'} feedback={lastResult} />
-
-      {showFeedback && (
-        <div className={`feedback ${lastResult.correct ? 'good' : 'bad'}`}>
-          <div className="pts">+{lastResult.points} pts</div>
-          <div>Resposta: <strong>{lastResult.correctText}</strong></div>
-          <div className="muted">{lastResult.detail}</div>
-          {format !== 'timer' && (
-            <button className="btn primary block" style={{ marginTop: 10 }} onClick={session.next}>
-              {format === 'daily' && session.roundNumber >= session.totalRounds ? 'Ver resultado' : 'Próxima'}
-            </button>
-          )}
-        </div>
+      {helpOpen && (
+        <Tutorial
+          def={def}
+          format={format}
+          overlay
+          startLabel="Voltar ao jogo ▶"
+          onExit={() => setHelpOpen(false)}
+          onStart={() => setHelpOpen(false)}
+        />
       )}
-
-      {format === 'infinite' && phase === 'playing' && session.index > 0 && (
-        <button className="btn ghost block" onClick={session.finish}>Encerrar sessão</button>
-      )}
-    </div>
+    </>
   );
 }

@@ -58,14 +58,25 @@ src/
   engine/        scoring · rng · dailyQueue · session · share   (lógica pura, testada)
   minigames/     registry.js (regras) + components/views.jsx (UI)
   formats/       useGameSession.js (hook dos 3 formatos)
-  data/          items.sample.json + loader (base única)
+  data/          items.json (base única) + loader com carga sob demanda
+                 mg/<minigame>.json + meta.json  (GERADOS, não versionados)
   state/         storage.js (localStorage: recordes, dias jogados)
   firebase/      config · auth · scores (tudo opcional/guardado)
-  screens/       Menu · Game · Result · Ranking · Login · Sources
+  screens/       Menu · Game(+GamePlay) · Result · Ranking · Login · Sources
 functions/       Cloud Functions: submitDailyScore / submitTimerScore (defendido)
 firestore.rules  score só gravável via Admin SDK (cliente nunca escreve score)
-scripts/generate SPARQL + pipeline da base (Wikidata + Commons)
+scripts/generate SPARQL + pipeline da base + split.mjs (separa por minigame)
 ```
+
+### Carga sob demanda (app leve)
+
+A base completa (~5 MB) **não** vai no bundle. `scripts/generate/split.mjs`
+separa `items.json` em `src/data/mg/<minigame>.json` (rodando nos hooks
+`predev`/`prebuild` e no fim de `data:build`). Cada minigame é um **chunk
+carregado só quando o jogador o abre** — o JS inicial cai de ~1,4 MB para
+~160 KB (gzip). A Cloud Function continua usando `items.json` completo; como
+cada arquivo é exatamente `itemsForMinigame(items.json, def)`, o diário
+determinístico bate entre cliente e servidor (coberto por testes).
 
 ---
 

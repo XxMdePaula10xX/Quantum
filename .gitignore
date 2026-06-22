@@ -18,3 +18,8 @@ npm-debug.log*
 
 # Generated data caches (large; built via scripts/generate)
 scripts/generate/.cache/
+
+# Base separada por minigame (gerada por scripts/generate/split.mjs nos hooks
+# predev/prebuild a partir de src/data/items.json — não versionar).
+src/data/mg/
+src/data/meta.json

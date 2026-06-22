@@ -5,12 +5,15 @@
   "type": "module",
   "description": "Quantum - app de quiz casual de estimativa e dedução (MVP)",
   "scripts": {
+    "predev": "node scripts/generate/split.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/generate/split.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "data:build": "node scripts/generate/build.mjs"
+    "data:build": "node scripts/generate/build.mjs",
+    "data:split": "node scripts/generate/split.mjs"
   },
   "dependencies": {
     "firebase": "^10.12.2",

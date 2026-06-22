@@ -364,7 +364,12 @@ async function main() {
 
   await writeFile(OUT, JSON.stringify(items));
   console.log(`\n✓ ${items.length} itens escritos em ${OUT}`);
-  console.log('  O app e a Cloud Function já usam esse items.json automaticamente.');
+
+  // Separa a base por minigame para o app carregar sob demanda.
+  console.log('\nSeparando por minigame…');
+  const { split } = await import('./split.mjs');
+  await split();
+  console.log('  O app e a Cloud Function já usam esses dados automaticamente.');
 }
 
 // Saída limpa: setar exitCode em vez de process.exit() evita o crash de libuv

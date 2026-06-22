@@ -1,29 +1,45 @@
-// Carregador da base de dados (PRD seção 3).
+// Carregador da base (PRD seção 3) — agora com CARGA SOB DEMANDA.
 //
-// A base ATIVA é sempre `items.json` (única, embutida, offline). Tanto o app
-// quanto a Cloud Function importam ESTE arquivo — assim cliente e servidor
-// usam exatamente a mesma base e a validação do ranking diário sempre bate.
+// Para o app ficar leve, a base NÃO é mais embutida inteira no bundle. O script
+// scripts/generate/split.mjs separa `items.json` em arquivos por minigame
+// (src/data/mg/<id>.json) nos hooks predev/prebuild. Aqui cada minigame é
+// carregado via import dinâmico (chunk separado) só quando o jogador o abre.
 //
-// Inicialmente `items.json` é uma cópia da base de exemplo. Para usar a base
-// real, rode `npm run data:build`, que SOBRESCREVE `items.json` com os dados
-// do Wikidata. Não precisa editar nada aqui.
+// A Cloud Function continua usando items.json + itemsForMinigame; como os
+// arquivos por minigame são exatamente itemsForMinigame(items.json, def), o
+// diário determinístico bate entre cliente e servidor.
 
-import items from './items.json';
+// Metadados pequenos (carregados ansiosamente): banner do menu, contagens.
+const metaMod = import.meta.glob('./meta.json', { eager: true, import: 'default' });
+export const META = metaMod['./meta.json'] || { sample: true, total: 0, counts: {} };
+export const USING_SAMPLE_DATA = META.sample !== false;
 
-export const ITEMS = items;
+// Carregadores lazy (cada arquivo vira um chunk separado).
+const poolLoaders = import.meta.glob('./mg/*.json');
+const creditsLoader = import.meta.glob('./mg/credits.json');
 
-// Detecta a base de exemplo pelo marcador de licença dos placeholders.
-export const USING_SAMPLE_DATA = items.some((it) => it.license === 'PLACEHOLDER (dev)');
+const cache = new Map();
 
-// Créditos de imagem para a tela de Fontes (PRD seção 4.6 / 9).
-export function imageCredits(items = ITEMS) {
-  return items
-    .filter((it) => it.image)
-    .map((it) => ({
-      id: it.id,
-      name: it.name,
-      image: it.image,
-      license: it.license || 'desconhecida',
-      author: it.author || '—',
-    }));
+/** Carrega (uma vez) o pool de itens de um minigame. */
+export async function loadPool(minigameId) {
+  if (cache.has(minigameId)) return cache.get(minigameId);
+  const key = `./mg/${minigameId}.json`;
+  const loader = poolLoaders[key];
+  if (!loader) {
+    throw new Error(
+      `Dados de "${minigameId}" não encontrados. Rode "npm run data:split" (ou reinicie o dev).`
+    );
+  }
+  const mod = await loader();
+  const data = mod.default || mod;
+  cache.set(minigameId, data);
+  return data;
+}
+
+/** Carrega os créditos de imagem (tela de Fontes), sob demanda. */
+export async function loadCredits() {
+  const loader = creditsLoader['./mg/credits.json'];
+  if (!loader) return [];
+  const mod = await loader();
+  return mod.default || mod;
 }
