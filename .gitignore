@@ -4,6 +4,9 @@ dist-ssr/
 .vite/
 coverage/
 
+# Saída de build das Cloud Functions (gerada pelo esbuild)
+functions/lib/
+
 # Local env files (never commit Firebase keys / secrets)
 .env
 .env.local
