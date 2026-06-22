@@ -69,11 +69,16 @@ export default function App() {
           fresh={view.fresh}
           user={user}
           onBackToMenu={goMenu}
-          onOpenRanking={() => setView({ name: 'ranking' })}
+          onOpenRanking={() =>
+            setView({
+              name: 'ranking',
+              initial: { minigameId: view.result.minigameId, format: view.result.format },
+            })
+          }
         />
       );
     case 'ranking':
-      return <RankingScreen onBack={goMenu} />;
+      return <RankingScreen user={user} initial={view.initial} onBack={goMenu} />;
     case 'login':
       return <LoginScreen user={user} onBack={goMenu} />;
     case 'sources':

@@ -2,7 +2,18 @@
 // (não a pontuação) para a Cloud Function `submitDailyScore`, que recalcula
 // e grava. Aqui ficam os wrappers de leitura/escrita.
 import { app, FIREBASE_ENABLED } from './config.js';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+  doc,
+  getDoc,
+  where,
+  getCountFromServer,
+} from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const db = FIREBASE_ENABLED ? getFirestore(app) : null;
@@ -42,6 +53,32 @@ export async function getTimerLeaderboard(minigameId, top = 50) {
   const col = collection(db, 'timerScores', minigameId, 'scores');
   const snap = await getDocs(query(col, orderBy('bestScore', 'desc'), limit(top)));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+// Posição (rank) do usuário = nº de pontuações maiores + 1.
+async function rankByField(col, field, value) {
+  const snap = await getCountFromServer(query(col, where(field, '>', value)));
+  return snap.data().count + 1;
+}
+
+/** Resultado do PRÓPRIO usuário no diário (score + posição), mesmo fora do top. */
+export async function getMyDailyEntry(minigameId, date, uid) {
+  if (!db || !uid) return null;
+  const snap = await getDoc(doc(db, 'dailyScores', date, minigameId, uid));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const rank = await rankByField(collection(db, 'dailyScores', date, minigameId), 'score', data.score);
+  return { uid, ...data, rank };
+}
+
+/** Recorde do PRÓPRIO usuário no Contra o tempo (score + posição). */
+export async function getMyTimerEntry(minigameId, uid) {
+  if (!db || !uid) return null;
+  const snap = await getDoc(doc(db, 'timerScores', minigameId, 'scores', uid));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  const rank = await rankByField(collection(db, 'timerScores', minigameId, 'scores'), 'bestScore', data.bestScore);
+  return { uid, ...data, rank };
 }
 
 export { db };

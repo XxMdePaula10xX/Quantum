@@ -24,9 +24,14 @@ export const GENERAL_KNOWLEDGE_TOP = 5000;
 // Ordenação estável por `fame` => determinístico (cliente e servidor iguais).
 // Sem `fame` (base antiga/exemplo), mantém tudo — comportamento inalterado.
 export function itemsForMinigame(items, def) {
-  const filtered = items.filter((it) =>
+  let filtered = items.filter((it) =>
     def.requiredFields.every((f) => it[f] !== undefined && it[f] !== null && it[f] !== '')
   );
+  // alguns minigames excluem categorias que não combinam (ex.: "evento" tem
+  // imagem de mapa/pintura e data obscura — ruim para reconhecer/adivinhar o ano)
+  if (def.excludeCategories) {
+    filtered = filtered.filter((it) => !def.excludeCategories.includes(it.category));
+  }
   if (!filtered.some((it) => typeof it.fame === 'number')) return filtered;
   // Ordem TOTAL e determinística: fame desc, desempate por id. Não depende da
   // ordem do items.json nem da estabilidade do sort — evita desync cliente/servidor.
@@ -75,6 +80,7 @@ export const MINIGAMES = [
     icon: '📅',
     blurb: 'Veja a imagem e chute o ano.',
     requiredFields: ['name', 'image', 'year'],
+    excludeCategories: ['evento'],
     scoring: { type: 'proximity', maxError: 50, k: 1.5 },
     timerSeconds: 60,
     buildRound(_pool, item) {
@@ -150,6 +156,7 @@ export const MINIGAMES = [
     icon: '🌍',
     blurb: 'Escolha o país certo entre 5 opções.',
     requiredFields: ['name', 'country'],
+    excludeCategories: ['evento'],
     scoring: { type: 'binary', basePoints: 1000, useCombo: false },
     timerSeconds: 45,
     buildRound(pool, item, seed) {
@@ -188,6 +195,7 @@ export const MINIGAMES = [
     icon: '🖼️',
     blurb: 'A imagem revela aos poucos — acerte o quanto antes.',
     requiredFields: ['name', 'image'],
+    excludeCategories: ['evento'],
     scoring: { type: 'proximity', maxError: GUESS_IMAGE_STEPS + 1, k: 1 },
     timerSeconds: 60,
     buildRound(pool, item, seed) {
