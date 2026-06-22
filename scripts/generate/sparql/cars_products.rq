@@ -1,15 +1,18 @@
 # Carros com imagem, ano e país (modos QuandoLançou, De que país é, Adivinhe
 # pela imagem). P18=imagem, P571=data de criação/início, P17=país.
-# Fatiado por faixa de ano (__MIN__/__MAX__). Mantido enxuto (modelo de
-# automóvel) para não estourar o timeout; dá pra ampliar os tipos depois.
+# Fatiado por faixa de ano (__MIN__/__MAX__). País/código são OPCIONAIS para
+# manter o cruzamento obrigatório barato (só tipo + imagem + data) e não estourar
+# o timeout do WDQS.
 SELECT DISTINCT ?item ?itemLabel ?year ?image ?countryLabel ?countryCode WHERE {
   ?item wdt:P31 wd:Q3231690 ;        # instância de modelo de automóvel
         wdt:P18 ?image ;
-        wdt:P571 ?inception ;
-        wdt:P17 ?country .
-  ?country wdt:P298 ?countryCode .
+        wdt:P571 ?inception .
   BIND(YEAR(?inception) AS ?year)
   FILTER(?year >= __MIN__ && ?year < __MAX__)
+  OPTIONAL {
+    ?item wdt:P17 ?country .
+    OPTIONAL { ?country wdt:P298 ?countryCode. }
+  }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "pt,en". }
 }
 LIMIT __LIMIT__

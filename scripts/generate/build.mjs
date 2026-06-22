@@ -178,6 +178,21 @@ const REQUIRED = {
 async function main() {
   const all = new Map(); // dedupe por id
 
+  // Preflight: confirma que o endpoint responde antes de fatiar tudo.
+  process.stdout.write('Testando conexão com o Wikidata… ');
+  try {
+    await runSparql('SELECT ?x WHERE { BIND(1 AS ?x) }', '_preflight');
+    console.log('OK');
+  } catch {
+    console.log('FALHOU.');
+    console.log(
+      'O Wikidata não respondeu (504/timeout). O serviço público às vezes fica\n' +
+        'sobrecarregado. Espere alguns minutos e rode de novo — o cache aproveita o\n' +
+        'que já deu certo. (Status: https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service)'
+    );
+    return;
+  }
+
   for (const q of QUERIES) {
     const template = await readFile(resolve(__dirname, 'sparql', q.file), 'utf8');
     const windows = q.chunkBy === 'population' ? POP_WINDOWS : yearWindows(q.from);
