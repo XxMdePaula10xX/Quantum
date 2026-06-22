@@ -25,7 +25,8 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
           await submitDailyScore({
             minigameId: result.minigameId,
             date: result.date,
-            answers: result.answers,
+            // inclui itemId por rodada para o servidor detectar base desatualizada
+            answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId })),
           });
         } else {
           await submitTimerScore({
