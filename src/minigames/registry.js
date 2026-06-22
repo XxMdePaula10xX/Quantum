@@ -28,7 +28,11 @@ export function itemsForMinigame(items, def) {
     def.requiredFields.every((f) => it[f] !== undefined && it[f] !== null && it[f] !== '')
   );
   if (!filtered.some((it) => typeof it.fame === 'number')) return filtered;
-  const sorted = [...filtered].sort((a, b) => (b.fame ?? 0) - (a.fame ?? 0));
+  // Ordem TOTAL e determinística: fame desc, desempate por id. Não depende da
+  // ordem do items.json nem da estabilidade do sort — evita desync cliente/servidor.
+  const sorted = [...filtered].sort(
+    (a, b) => (b.fame ?? 0) - (a.fame ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
   return sorted.slice(0, GENERAL_KNOWLEDGE_TOP);
 }
 
@@ -107,9 +111,11 @@ export const MINIGAMES = [
     scoring: { type: 'binary', basePoints: 100, useCombo: true },
     timerSeconds: 45,
     buildRound(pool, item, seed) {
-      // oponente com a MESMA métrica (comparação faz sentido); cai para mesma
-      // categoria e, por último, qualquer item, só se não houver alternativa.
-      const sameMetric = pool.filter((p) => p.id !== item.id && p.metricType === item.metricType);
+      // oponente com a MESMA métrica e valor DIFERENTE (sem empate ambíguo);
+      // cai para mesma categoria e, por último, qualquer item.
+      const sameMetric = pool.filter(
+        (p) => p.id !== item.id && p.metricType === item.metricType && p.metric !== item.metric
+      );
       const sameCat = pool.filter((p) => p.id !== item.id && p.category === item.category);
       const others = sameMetric.length ? sameMetric : sameCat.length ? sameCat : pool.filter((p) => p.id !== item.id);
       const opp = others[Math.floor(mulberry32(seed)() * others.length)] || item;

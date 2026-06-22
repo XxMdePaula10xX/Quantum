@@ -10,7 +10,7 @@ import { isTutorialDismissed, setTutorialDismissed } from '../state/storage.js';
 // minigame (chunk separado) e só então monta o GamePlay. O tutorial inicial
 // roda antes do GamePlay (o timer não corre durante ele); o botão "?" reabre o
 // tutorial como sobreposição, sem desmontar a partida (não perde o progresso).
-export default function GameScreen({ minigameId, format, onExit, onFinish }) {
+export default function GameScreen({ minigameId, format, uid, onExit, onFinish }) {
   const def = getMinigame(minigameId);
   const date = todayKey();
   const [started, setStarted] = useState(() => isTutorialDismissed(minigameId, format));
@@ -64,6 +64,7 @@ export default function GameScreen({ minigameId, format, onExit, onFinish }) {
         format={format}
         pool={pool}
         date={date}
+        uid={uid}
         onExit={onExit}
         onFinish={onFinish}
         onHelp={format !== 'timer' ? () => setHelpOpen(true) : null}

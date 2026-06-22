@@ -29,6 +29,15 @@ function splitPool(def, fields) {
 }
 
 describe('determinismo cliente (pool separado) == servidor (base completa)', () => {
+  it('com fame, a ordem de entrada NÃO afeta o diário (id como desempate)', () => {
+    // muitos empates de fame: sem desempate por id, a ordem de entrada mudaria o resultado
+    const withFame = base.map((it, i) => ({ ...it, fame: i % 3 }));
+    const def = getMinigame('whenLaunched');
+    const a = makeDailyRounds(def, withFame, '2025-06-01').map((r) => r.item.id);
+    const b = makeDailyRounds(def, [...withFame].reverse(), '2025-06-01').map((r) => r.item.id);
+    expect(a).toEqual(b);
+  });
+
   it('whenLaunched: mesmos itens e mesmos pontos', () => {
     const def = getMinigame('whenLaunched');
     const proj = splitPool(def, ['id', 'name', 'image', 'year', 'category']);
@@ -55,13 +64,14 @@ describe('determinismo cliente (pool separado) == servidor (base completa)', () 
     });
   });
 
-  it('whichCountry: mesma lista de países', () => {
+  it('whichCountry: mesmas 5 opções embaralhadas e mesmo item', () => {
     const def = getMinigame('whichCountry');
-    const proj = splitPool(def, ['id', 'name', 'country', 'image']);
+    const proj = splitPool(def, ['id', 'name', 'country', 'image', 'category']);
     const server = makeDailyRounds(def, base, '2025-05-03');
     const client = makeDailyRounds(def, proj, '2025-05-03');
     client.forEach((r, i) => {
-      expect(r.data.countries).toEqual(server[i].data.countries);
+      expect(r.data.options).toEqual(server[i].data.options); // mesma ordem das opções
+      expect(r.data.options.length).toBeGreaterThan(0);
       expect(r.data.item.id).toBe(server[i].data.item.id);
     });
   });

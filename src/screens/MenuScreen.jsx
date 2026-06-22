@@ -3,7 +3,7 @@ import { hasPlayedDaily } from '../state/storage.js';
 import { todayKey } from '../engine/dailyQueue.js';
 import { USING_SAMPLE_DATA } from '../data/index.js';
 
-export default function MenuScreen({ user, onPlay, onOpenRanking, onOpenLogin, onOpenSources }) {
+export default function MenuScreen({ user, uid, onPlay, onOpenRanking, onOpenLogin, onOpenSources }) {
   const date = todayKey();
   return (
     <div className="app">
@@ -28,7 +28,7 @@ export default function MenuScreen({ user, onPlay, onOpenRanking, onOpenLogin, o
 
       <div className="grid">
         {MINIGAMES.map((m) => {
-          const played = hasPlayedDaily(m.id, date);
+          const played = hasPlayedDaily(m.id, date, uid);
           return (
             <div className="card game-card" key={m.id}>
               <div className="icon">{m.icon}</div>

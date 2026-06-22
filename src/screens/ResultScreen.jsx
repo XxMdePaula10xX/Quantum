@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buildShareText } from '../engine/share.js';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { submitDailyScore, submitTimerScore } from '../firebase/scores.js';
@@ -7,16 +7,18 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
   const [shared, setShared] = useState(false);
   const [submitState, setSubmitState] = useState('idle'); // idle|sending|done|error|skipped
   const [submitMsg, setSubmitMsg] = useState('');
+  const submittedRef = useRef(false); // garante UM envio por tela de resultado
   const ranked = result.format === 'daily' || result.format === 'timer';
 
   // Envio AUTOMÁTICO ao ranking (sem botão): só em partida recém-terminada,
-  // com Firebase configurado e usuário logado.
+  // com Firebase configurado e usuário logado, UMA vez.
   useEffect(() => {
-    if (!fresh || !ranked) return;
+    if (!fresh || !ranked || submittedRef.current) return;
     if (!FIREBASE_ENABLED || !user) {
       setSubmitState('skipped');
       return;
     }
+    submittedRef.current = true;
     let alive = true;
     setSubmitState('sending');
     (async () => {

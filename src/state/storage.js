@@ -33,17 +33,19 @@ function writeJSON(key, value) {
 }
 
 // ---- Resultado do diário (1 por minigame por dia, travado) -----------------
+// Chaveado por CONTA (uid): cada usuário tem seu próprio "já jogou hoje" no
+// mesmo aparelho. Sem login, usa o escopo 'local'.
 
-const dailyKey = (minigameId, date) => `daily:${minigameId}:${date}`;
+const dailyKey = (minigameId, date, uid) => `daily:${uid || 'local'}:${minigameId}:${date}`;
 
-export function getDailyResult(minigameId, date) {
-  return readJSON(dailyKey(minigameId, date), null);
+export function getDailyResult(minigameId, date, uid) {
+  return readJSON(dailyKey(minigameId, date, uid), null);
 }
-export function saveDailyResult(minigameId, date, result) {
-  writeJSON(dailyKey(minigameId, date), result);
+export function saveDailyResult(minigameId, date, result, uid) {
+  writeJSON(dailyKey(minigameId, date, uid), result);
 }
-export function hasPlayedDaily(minigameId, date) {
-  return getDailyResult(minigameId, date) != null;
+export function hasPlayedDaily(minigameId, date, uid) {
+  return getDailyResult(minigameId, date, uid) != null;
 }
 
 // ---- Recordes do modo Infinito e Contra o tempo ----------------------------

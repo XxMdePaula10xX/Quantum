@@ -8,7 +8,7 @@ const TIMER_FEEDBACK_MS = 800;
 
 // UI de uma partida em andamento. Só é montado depois do tutorial e com o
 // `pool` (base do minigame) já carregado.
-export default function GamePlay({ def, format, pool, date, onExit, onFinish, onHelp }) {
+export default function GamePlay({ def, format, pool, date, uid, onExit, onFinish, onHelp }) {
   const session = useGameSession(def, format, { date, pool });
   const View = VIEWS[def.id];
   const finishedRef = useRef(false);
@@ -48,12 +48,12 @@ export default function GamePlay({ def, format, pool, date, onExit, onFinish, on
       timeTotal: session.timeTotal,
     };
     if (format === 'daily') {
-      saveDailyResult(def.id, date, result);
+      saveDailyResult(def.id, date, result, uid);
     } else {
       result.isBest = setBest(format, def.id, totalScore);
     }
     onFinish(result);
-  }, [phase, breakdown, totalScore, def, format, date, onFinish, session.timeTotal]);
+  }, [phase, breakdown, totalScore, def, format, date, uid, onFinish, session.timeTotal]);
 
   if (phase === 'finished') {
     return <div className="app"><p className="center muted">Calculando resultado…</p></div>;

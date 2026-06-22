@@ -6,21 +6,38 @@ import RankingScreen from './screens/RankingScreen.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
 import SourcesScreen from './screens/SourcesScreen.jsx';
 import { onAuth } from './firebase/auth.js';
+import { FIREBASE_ENABLED } from './firebase/config.js';
 import { getDailyResult } from './state/storage.js';
 import { todayKey } from './engine/dailyQueue.js';
 
 export default function App() {
   const [view, setView] = useState({ name: 'menu' });
   const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(!FIREBASE_ENABLED);
 
-  useEffect(() => onAuth(setUser), []);
+  // Espera o estado de auth resolver antes de liberar o jogo, senão o uid pode
+  // estar defasado (null) ao tocar no diário e a trava por conta erra.
+  useEffect(
+    () =>
+      onAuth((u) => {
+        setUser(u);
+        setAuthReady(true);
+      }),
+    []
+  );
+
+  if (!authReady) {
+    return <div className="app"><p className="center muted">Carregando…</p></div>;
+  }
 
   const goMenu = () => setView({ name: 'menu' });
 
+  const uid = user?.uid || null;
+
   const play = (minigameId, format) => {
-    // Diário só pode ser jogado uma vez por dia: se já jogou, mostra o resultado.
+    // Diário só pode ser jogado uma vez por dia POR CONTA: se já jogou, mostra o resultado.
     if (format === 'daily') {
-      const existing = getDailyResult(minigameId, todayKey());
+      const existing = getDailyResult(minigameId, todayKey(), uid);
       if (existing) {
         // resultado já guardado (dia já jogado) — só visualização, não reenvia.
         setView({ name: 'result', result: existing, fresh: false });
@@ -37,9 +54,10 @@ export default function App() {
     case 'game':
       return (
         <GameScreen
-          key={`${view.minigameId}:${view.format}`}
+          key={`${view.minigameId}:${view.format}:${uid || 'local'}`}
           minigameId={view.minigameId}
           format={view.format}
+          uid={uid}
           onExit={goMenu}
           onFinish={finish}
         />
@@ -64,6 +82,7 @@ export default function App() {
       return (
         <MenuScreen
           user={user}
+          uid={uid}
           onPlay={play}
           onOpenRanking={() => setView({ name: 'ranking' })}
           onOpenLogin={() => setView({ name: 'login' })}

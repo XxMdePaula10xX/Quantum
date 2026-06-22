@@ -49,7 +49,7 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
       />
 
       {!answered && (
-        <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => onSubmit({ guess: year })}>
+        <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => onSubmit({ guess: clamped })}>
           Confirmar
         </button>
       )}
