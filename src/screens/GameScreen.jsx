@@ -1,19 +1,26 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getMinigame } from '../minigames/registry.js';
 import { VIEWS } from '../minigames/components/views.jsx';
 import { useGameSession } from '../formats/useGameSession.js';
 import { todayKey } from '../engine/dailyQueue.js';
 import GameHeader from '../components/GameHeader.jsx';
-import { saveDailyResult, setBest } from '../state/storage.js';
+import Tutorial from '../components/Tutorial.jsx';
+import {
+  saveDailyResult,
+  setBest,
+  isTutorialDismissed,
+  setTutorialDismissed,
+} from '../state/storage.js';
 
 const TIMER_FEEDBACK_MS = 1100;
 
 export default function GameScreen({ minigameId, format, onExit, onFinish }) {
   const def = getMinigame(minigameId);
   const date = todayKey();
-  const session = useGameSession(def, format, { date });
+  const session = useGameSession(def, format, { date, autoStart: false });
   const View = VIEWS[minigameId];
   const finishedRef = useRef(false);
+  const [showTutorial, setShowTutorial] = useState(() => !isTutorialDismissed(minigameId, format));
 
   const { phase, lastResult, breakdown, totalScore } = session;
 
@@ -48,6 +55,22 @@ export default function GameScreen({ minigameId, format, onExit, onFinish }) {
     onFinish(result);
   }, [phase, breakdown, totalScore, def, minigameId, format, date, onFinish]);
 
+  // Tutorial antes de iniciar o modo (timer fica pausado até "Começar").
+  if (showTutorial) {
+    return (
+      <Tutorial
+        def={def}
+        format={format}
+        onExit={onExit}
+        onStart={(dontShow) => {
+          if (dontShow) setTutorialDismissed(minigameId, format, true);
+          setShowTutorial(false);
+          session.start();
+        }}
+      />
+    );
+  }
+
   if (phase === 'finished') {
     return <div className="app"><p className="center muted">Calculando resultado…</p></div>;
   }
@@ -56,7 +79,12 @@ export default function GameScreen({ minigameId, format, onExit, onFinish }) {
 
   return (
     <div className="app">
-      <GameHeader session={session} def={def} onExit={onExit} />
+      <GameHeader
+        session={session}
+        def={def}
+        onExit={onExit}
+        onHelp={format !== 'timer' ? () => setShowTutorial(true) : null}
+      />
 
       <View round={session.current.data} onSubmit={session.submit} answered={phase === 'answered'} feedback={lastResult} />
 

@@ -7,10 +7,11 @@ import { ROUNDS_PER_DAY } from '../engine/dailyQueue.js';
 //  - daily:    5 rodadas fixas; ao fim, status 'finished'.
 //  - infinite: rodadas ilimitadas; encerra quando o jogador sai.
 //  - timer:    tempo total (def.timerSeconds); encerra quando zera.
-export function useGameSession(def, format, { date } = {}) {
+export function useGameSession(def, format, { date, autoStart = true } = {}) {
   const isDaily = format === 'daily';
   const isTimer = format === 'timer';
   const timeTotal = def.timerSeconds || 60;
+  const [started, setStarted] = useState(autoStart);
 
   const [rounds, setRounds] = useState(() =>
     isDaily ? makeDailyRounds(def, ITEMS, date) : [makeRandomRound(def, ITEMS)]
@@ -29,9 +30,9 @@ export function useGameSession(def, format, { date } = {}) {
 
   const current = rounds[index];
 
-  // Contagem regressiva do modo timer.
+  // Contagem regressiva do modo timer (só após started — não corre durante o tutorial).
   useEffect(() => {
-    if (!isTimer || phase === 'finished') return undefined;
+    if (!isTimer || !started || phase === 'finished') return undefined;
     const t = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 0.1) {
@@ -43,7 +44,9 @@ export function useGameSession(def, format, { date } = {}) {
       });
     }, 100);
     return () => clearInterval(t);
-  }, [isTimer, phase]);
+  }, [isTimer, started, phase]);
+
+  const start = useCallback(() => setStarted(true), []);
 
   const submit = useCallback(
     (input) => {
@@ -99,6 +102,8 @@ export function useGameSession(def, format, { date } = {}) {
 
   return {
     formatInfo: FORMATS[format],
+    started,
+    start,
     current,
     index,
     roundNumber: index + 1,

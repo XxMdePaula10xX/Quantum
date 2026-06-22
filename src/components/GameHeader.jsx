@@ -1,6 +1,6 @@
 // Cabeçalho da tela de jogo (PRD seção 4.2): formato, progresso, pontuação,
 // combo e (no timer) tempo restante.
-export default function GameHeader({ session, def, onExit }) {
+export default function GameHeader({ session, def, onExit, onHelp }) {
   const { formatInfo, roundNumber, totalRounds, totalScore, combo, timeLeft, timeTotal } = session;
   const pct =
     formatInfo.id === 'timer'
@@ -18,7 +18,12 @@ export default function GameHeader({ session, def, onExit }) {
         <span className="muted">
           {def.icon} {def.name} · {formatInfo.name}
         </span>
-        <span className="score">{totalScore} pts</span>
+        <span className="row">
+          {onHelp && (
+            <button className="btn ghost small" onClick={onHelp} aria-label="Como jogar">?</button>
+          )}
+          <span className="score">{totalScore} pts</span>
+        </span>
       </div>
 
       <div className="line">

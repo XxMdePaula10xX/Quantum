@@ -68,3 +68,16 @@ export function getPrefs() {
 export function setPrefs(prefs) {
   writeJSON('prefs', prefs);
 }
+
+// ---- Tutoriais (mostrar ao iniciar cada modo) ------------------------------
+// Guardamos quando o jogador marcou "não mostrar de novo" para um par
+// minigame+formato. Por padrão o tutorial aparece (valor false).
+
+const tutKey = (minigameId, format) => `tut-dismissed:${minigameId}:${format}`;
+
+export function isTutorialDismissed(minigameId, format) {
+  return readJSON(tutKey(minigameId, format), false) === true;
+}
+export function setTutorialDismissed(minigameId, format, dismissed) {
+  writeJSON(tutKey(minigameId, format), dismissed === true);
+}
