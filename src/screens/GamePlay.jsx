@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { VIEWS } from '../minigames/components/views.jsx';
 import { useGameSession } from '../formats/useGameSession.js';
 import GameHeader from '../components/GameHeader.jsx';
@@ -17,7 +17,11 @@ export default function GamePlay({ def, format, pool, date, uid, onExit, onFinis
   // Dicas reveladas (pagas) na rodada atual; zera ao trocar de rodada.
   const [hintsUsed, setHintsUsed] = useState(0);
   useEffect(() => setHintsUsed(0), [session.index]);
-  const hints = def.hints && session.current ? def.hints(session.current.data) : [];
+  // memoizado por rodada: não recalcula a cada tick do cronômetro (100ms)
+  const hints = useMemo(
+    () => (def.hints && session.current ? def.hints(session.current.data) : []),
+    [def, session.current]
+  );
 
   // Modo timer: mostra feedback breve e avança sozinho.
   // IMPORTANTE: usar ref para `next` e depender só de [format, phase] — senão o
