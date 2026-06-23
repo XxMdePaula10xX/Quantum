@@ -42,9 +42,19 @@ export async function loginWithEmail(email, password) {
 export async function registerWithEmail(email, password, displayName) {
   if (!auth) throw new Error('Firebase não configurado');
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
+  // IMPORTANTE: a conta JÁ está criada e logada aqui. Os passos abaixo (gravar
+  // o apelido e atualizar o token) são "best-effort": no WebView do iOS eles
+  // às vezes falham/travam. Se lançássemos o erro, o usuário acharia que o
+  // cadastro falhou e tentaria de novo — recebendo "e-mail já cadastrado",
+  // porque a conta foi criada na primeira tentativa.
   if (displayName) {
-    await updateProfile(user, { displayName });
-    await user.getIdToken(true); // refresh para o claim `name` entrar no token
+    try {
+      await updateProfile(user, { displayName });
+      await user.getIdToken(true); // refresh para o claim `name` entrar no token
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Apelido não gravado agora (entra no próximo login):', e?.message || e);
+    }
   }
   return user;
 }
