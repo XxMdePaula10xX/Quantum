@@ -24,27 +24,28 @@ export default function RankingScreen({ user, initial, onBack }) {
     if (!FIREBASE_ENABLED) return;
     setLoading(true);
     setError('');
-    try {
-      const work = Promise.all([
-        tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId),
-        tab === 'daily' ? getMyDailyEntry(minigameId, date, uid) : getMyTimerEntry(minigameId, uid),
+    // Cada leitura tem seu próprio timeout e é independente: a LISTA aparece
+    // mesmo que "minha posição" (contagem) trave no WebView do iOS.
+    const withTimeout = (p) =>
+      Promise.race([
+        p,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
       ]);
-      // rede travada não deixa o ranking carregando para sempre
-      const timeout = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('Tempo esgotado ao ler o ranking. Toque em 🔄 para tentar.')), 12000)
-      );
-      const [list, my] = await Promise.race([work, timeout]);
-      if (!aliveRef.current) return; // saiu da tela enquanto carregava
-      setRows(list);
-      setMine(my);
-    } catch (e) {
-      if (!aliveRef.current) return;
+    const lbP = tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId);
+    const myP = tab === 'daily' ? getMyDailyEntry(minigameId, date, uid) : getMyTimerEntry(minigameId, uid);
+
+    const [lb, my] = await Promise.allSettled([withTimeout(lbP), withTimeout(myP)]);
+    if (!aliveRef.current) return; // saiu da tela enquanto carregava
+
+    if (lb.status === 'fulfilled') {
+      setRows(lb.value);
+      setError('');
+    } else {
       setRows([]);
-      setMine(null);
-      setError(e?.message || 'Falha ao ler o ranking.');
-    } finally {
-      if (aliveRef.current) setLoading(false);
+      setError('Tempo esgotado ao ler o ranking. Toque em 🔄 para tentar de novo.');
     }
+    setMine(my.status === 'fulfilled' ? my.value : null);
+    setLoading(false);
   }, [tab, minigameId, date, uid]);
 
   // Carrega automaticamente ao entrar e ao trocar aba/minigame.

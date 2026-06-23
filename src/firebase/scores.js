@@ -84,6 +84,8 @@ export async function getTimerLeaderboard(minigameId, top = 50) {
 }
 
 // Posição (rank) do usuário = nº de pontuações maiores + 1.
+// getCountFromServer usa transporte de agregação que PODE travar no WKWebView
+// do iOS — por isso quem chama trata a falha como "sem rank" (não-fatal).
 async function rankByField(col, field, value) {
   const snap = await getCountFromServer(query(col, where(field, '>', value)));
   return snap.data().count + 1;
@@ -95,7 +97,12 @@ export async function getMyDailyEntry(minigameId, date, uid) {
   const snap = await getDoc(doc(db, 'dailyScores', date, minigameId, uid));
   if (!snap.exists()) return null;
   const data = snap.data();
-  const rank = await rankByField(collection(db, 'dailyScores', date, minigameId), 'score', data.score);
+  let rank = null;
+  try {
+    rank = await rankByField(collection(db, 'dailyScores', date, minigameId), 'score', data.score);
+  } catch {
+    /* contagem indisponível: mostra o score sem a posição */
+  }
   return { uid, ...data, rank };
 }
 
@@ -105,7 +112,12 @@ export async function getMyTimerEntry(minigameId, uid) {
   const snap = await getDoc(doc(db, 'timerScores', minigameId, 'scores', uid));
   if (!snap.exists()) return null;
   const data = snap.data();
-  const rank = await rankByField(collection(db, 'timerScores', minigameId, 'scores'), 'bestScore', data.bestScore);
+  let rank = null;
+  try {
+    rank = await rankByField(collection(db, 'timerScores', minigameId, 'scores'), 'bestScore', data.bestScore);
+  } catch {
+    /* contagem indisponível: mostra o score sem a posição */
+  }
   return { uid, ...data, rank };
 }
 
