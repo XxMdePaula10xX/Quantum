@@ -156,14 +156,18 @@ workflows:
         script: npx cap sync ios
       - name: Assinatura (CRIA certificado + perfil se não existir)
         script: |
+          set -x
           keychain initialize
+          # diagnóstico: lista os certificados de distribuição existentes
+          app-store-connect list-certificates --type IOS_DISTRIBUTION || true
           # --create cria o certificado de distribuição e o perfil App Store
           # caso ainda não existam (app novo) — usa a chave quantum_asc.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --platform IOS
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles --project "ios/App/App.xcodeproj"
       - name: Build do IPA (assinado)
         script: |
           xcode-project build-ipa \
