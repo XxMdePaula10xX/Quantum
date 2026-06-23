@@ -42,7 +42,15 @@ export default function RankingScreen({ user, initial, onBack }) {
       setError('');
     } else {
       setRows([]);
-      setError('Tempo esgotado ao ler o ranking. Toque em 🔄 para tentar de novo.');
+      const r = lb.reason;
+      // mensagem diagnóstica: distingue rede x permissão x outro
+      const msg =
+        r?.message === 'timeout'
+          ? 'Sem resposta do servidor (rede/long-polling). Toque em 🔄 para tentar.'
+          : r?.code === 'permission-denied'
+          ? 'Permissão negada: publique as regras com "firebase deploy --only firestore".'
+          : `Erro ao ler o ranking: ${r?.code || r?.message || r}`;
+      setError(msg);
     }
     setMine(my.status === 'fulfilled' ? my.value : null);
     setLoading(false);
