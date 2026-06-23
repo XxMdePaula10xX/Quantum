@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildShareText } from '../engine/share.js';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { submitDailyScore, submitTimerScore } from '../firebase/scores.js';
@@ -7,52 +7,66 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
   const [shared, setShared] = useState(false);
   const [submitState, setSubmitState] = useState('idle'); // idle|sending|done|error|skipped
   const [submitMsg, setSubmitMsg] = useState('');
-  const submittedRef = useRef(false); // garante UM envio por tela de resultado
+  const submittedRef = useRef(false); // trava SÓ após sucesso (permite retry)
+  const sendingRef = useRef(false); // evita envios concorrentes (ex.: StrictMode)
+  const aliveRef = useRef(true);
   const ranked = result.format === 'daily' || result.format === 'timer';
 
-  // Envio AUTOMÁTICO ao ranking (sem botão): só em partida recém-terminada,
-  // com Firebase configurado e usuário logado, UMA vez.
   useEffect(() => {
-    if (!fresh || !ranked || submittedRef.current) return;
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  // Envio ao ranking. Reutilizado pelo envio automático e pelo botão "Tentar
+  // novamente". submittedRef só trava em caso de SUCESSO — assim uma falha de
+  // rede não perde a pontuação para sempre (era um bug: dado perdido).
+  const doSubmit = useCallback(async () => {
+    if (submittedRef.current || sendingRef.current) return;
     if (!FIREBASE_ENABLED || !user) {
       setSubmitState('skipped');
       return;
     }
-    submittedRef.current = true;
-    let alive = true;
+    sendingRef.current = true;
     setSubmitState('sending');
-    (async () => {
-      try {
-        if (result.format === 'daily') {
-          await submitDailyScore({
-            minigameId: result.minigameId,
-            date: result.date,
-            // inclui itemId por rodada para o servidor detectar base desatualizada
-            answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId })),
-          });
-        } else {
-          await submitTimerScore({
-            minigameId: result.minigameId,
-            rounds: result.breakdown.map((b) => ({
-              itemId: b.itemId,
-              salt: b.salt,
-              input: b.input,
-              timeRemaining: b.timeRemaining,
-              timeTotal: result.timeTotal,
-            })),
-          });
-        }
-        if (alive) setSubmitState('done');
-      } catch (e) {
-        if (!alive) return;
+    try {
+      if (result.format === 'daily') {
+        await submitDailyScore({
+          minigameId: result.minigameId,
+          date: result.date,
+          // inclui itemId por rodada para o servidor detectar base desatualizada
+          answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId })),
+        });
+      } else {
+        await submitTimerScore({
+          minigameId: result.minigameId,
+          rounds: result.breakdown.map((b) => ({
+            itemId: b.itemId,
+            salt: b.salt,
+            input: b.input,
+            timeRemaining: b.timeRemaining,
+            timeTotal: result.timeTotal,
+          })),
+        });
+      }
+      submittedRef.current = true; // sucesso: não reenvia
+      if (aliveRef.current) setSubmitState('done');
+    } catch (e) {
+      if (aliveRef.current) {
         setSubmitState('error');
         setSubmitMsg(e?.message || 'Não foi possível enviar agora.');
       }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [fresh, ranked, user, result]);
+    } finally {
+      sendingRef.current = false;
+    }
+  }, [user, result]);
+
+  // Envio AUTOMÁTICO ao ranking: só em partida recém-terminada e ranqueada.
+  useEffect(() => {
+    if (!fresh || !ranked) return;
+    doSubmit();
+  }, [fresh, ranked, doSubmit]);
 
   const shareText = buildShareText({
     minigameName: result.minigameName,
@@ -94,6 +108,9 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
       {/* Status do envio automático ao ranking */}
       {ranked && fresh && (
         <RankingStatus state={submitState} msg={submitMsg} firebase={FIREBASE_ENABLED} loggedIn={!!user} />
+      )}
+      {ranked && fresh && submitState === 'error' && (
+        <button className="btn ghost block" onClick={doSubmit}>🔄 Tentar enviar de novo</button>
       )}
 
       <button className="btn primary block big" onClick={share}>

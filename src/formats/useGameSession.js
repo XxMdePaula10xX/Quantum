@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FORMATS, makeDailyRounds, makeRandomRound, resolveRound } from '../engine/session.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FORMATS,
+  makeDailyRoundsFromPool,
+  makeRandomRoundFromPool,
+  resolveRound,
+} from '../engine/session.js';
+import { itemsForMinigame } from '../minigames/registry.js';
 import { ROUNDS_PER_DAY } from '../engine/dailyQueue.js';
 
 // Hook que dirige uma sessão de jogo nos 3 formatos.
@@ -15,8 +21,15 @@ export function useGameSession(def, format, { date, pool }) {
   const isTimer = format === 'timer';
   const timeTotal = def.timerSeconds || 60;
 
+  // Filtra o pool UMA vez (não a cada rodada). O pool já costuma vir filtrado
+  // do arquivo por minigame, mas itemsForMinigame é idempotente e garante a
+  // mesma ordem determinística usada pelo servidor.
+  const filteredPool = useMemo(() => itemsForMinigame(pool, def), [pool, def]);
+  const poolRef = useRef(filteredPool);
+  poolRef.current = filteredPool;
+
   const [rounds, setRounds] = useState(() =>
-    isDaily ? makeDailyRounds(def, pool, date) : [makeRandomRound(def, pool)]
+    isDaily ? makeDailyRoundsFromPool(def, filteredPool, date) : [makeRandomRoundFromPool(def, filteredPool)]
   );
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState('playing'); // playing | answered | finished
@@ -93,10 +106,10 @@ export function useGameSession(def, format, { date, pool }) {
       setPhase('finished');
       return;
     }
-    setRounds((r) => [...r, makeRandomRound(def, pool)]);
+    setRounds((r) => [...r, makeRandomRoundFromPool(def, poolRef.current)]);
     setIndex((i) => i + 1);
     setPhase('playing');
-  }, [isDaily, isTimer, index, def, pool]);
+  }, [isDaily, isTimer, index, def]);
 
   const finish = useCallback(() => setPhase('finished'), []);
 

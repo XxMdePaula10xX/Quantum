@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VIEWS } from '../minigames/components/views.jsx';
 import { useGameSession } from '../formats/useGameSession.js';
 import GameHeader from '../components/GameHeader.jsx';
@@ -21,6 +21,15 @@ export default function GamePlay({ def, format, pool, date, uid, onExit, onFinis
   const hints = useMemo(
     () => (def.hints && session.current ? def.hints(session.current.data) : []),
     [def, session.current]
+  );
+
+  // injeta as dicas pagas usadas no input enviado (entra na pontuação e é
+  // recalculada igual no servidor). useCallback estável: sem isso, o tick do
+  // cronômetro recriaria a função e re-renderizaria a View (memoizada).
+  const submit = session.submit;
+  const submitWithHints = useCallback(
+    (input) => submit({ ...input, hintsUsed }),
+    [submit, hintsUsed]
   );
 
   // Modo timer: mostra feedback breve e avança sozinho.
@@ -64,9 +73,6 @@ export default function GamePlay({ def, format, pool, date, uid, onExit, onFinis
   }
 
   const showFeedback = phase === 'answered' && lastResult;
-  // injeta as dicas pagas usadas no input enviado (entra na pontuação e é
-  // recalculada igual no servidor).
-  const submitWithHints = (input) => session.submit({ ...input, hintsUsed });
   const paidShown = Math.min(hintsUsed, Math.max(0, hints.length - 1));
 
   return (

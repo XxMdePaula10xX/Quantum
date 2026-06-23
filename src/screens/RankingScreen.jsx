@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MINIGAMES } from '../minigames/registry.js';
 import { todayKey } from '../engine/dailyQueue.js';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
@@ -18,6 +18,7 @@ export default function RankingScreen({ user, initial, onBack }) {
   const [error, setError] = useState('');
   const date = todayKey();
   const uid = user?.uid || null;
+  const aliveRef = useRef(true);
 
   const load = useCallback(async () => {
     if (!FIREBASE_ENABLED) return;
@@ -33,20 +34,26 @@ export default function RankingScreen({ user, initial, onBack }) {
         setTimeout(() => rej(new Error('Tempo esgotado ao ler o ranking. Toque em 🔄 para tentar.')), 12000)
       );
       const [list, my] = await Promise.race([work, timeout]);
+      if (!aliveRef.current) return; // saiu da tela enquanto carregava
       setRows(list);
       setMine(my);
     } catch (e) {
+      if (!aliveRef.current) return;
       setRows([]);
       setMine(null);
       setError(e?.message || 'Falha ao ler o ranking.');
     } finally {
-      setLoading(false);
+      if (aliveRef.current) setLoading(false);
     }
   }, [tab, minigameId, date, uid]);
 
   // Carrega automaticamente ao entrar e ao trocar aba/minigame.
   useEffect(() => {
+    aliveRef.current = true;
     load();
+    return () => {
+      aliveRef.current = false;
+    };
   }, [load]);
 
   const scoreOf = (r) => (tab === 'daily' ? r.score : r.bestScore);

@@ -17,19 +17,31 @@ export function buildRoundFor(def, pool, item, salt = 0) {
   return { item, data: def.buildRound(pool, item, seed), seed, salt };
 }
 
-/** As 5 rodadas determinísticas do diário para uma data. */
-export function makeDailyRounds(def, items, date) {
-  const pool = itemsForMinigame(items, def);
+/**
+ * As 5 rodadas determinísticas do diário a partir de um pool JÁ FILTRADO
+ * (itemsForMinigame aplicado). Use isto quando o pool já é o arquivo por
+ * minigame (cliente) para não refiltrar a cada chamada.
+ */
+export function makeDailyRoundsFromPool(def, pool, date) {
   const chosen = dailyItems(pool, def.id, date, ROUNDS_PER_DAY);
   return chosen.map((item) => buildRoundFor(def, pool, item));
 }
 
-/** Uma rodada aleatória (modos Infinito/Contra o tempo). `rnd` em [0,1). */
-export function makeRandomRound(def, items, rnd = Math.random()) {
-  const pool = itemsForMinigame(items, def);
+/** Como makeRandomRound, mas a partir de um pool JÁ FILTRADO. */
+export function makeRandomRoundFromPool(def, pool, rnd = Math.random()) {
   const item = pool[Math.floor(rnd * pool.length)];
   // salt aleatório para variar opções/oponente entre repetições do mesmo item
   return buildRoundFor(def, pool, item, Math.floor(rnd * 1e9));
+}
+
+/** As 5 rodadas determinísticas do diário para uma data (filtra o pool). */
+export function makeDailyRounds(def, items, date) {
+  return makeDailyRoundsFromPool(def, itemsForMinigame(items, def), date);
+}
+
+/** Uma rodada aleatória (modos Infinito/Contra o tempo). `rnd` em [0,1). */
+export function makeRandomRound(def, items, rnd = Math.random()) {
+  return makeRandomRoundFromPool(def, itemsForMinigame(items, def), rnd);
 }
 
 /**

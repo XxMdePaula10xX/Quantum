@@ -116,7 +116,10 @@ export const submitTimerScore = onCall(async (request) => {
     for (const r of clientRounds) {
       const item = byId.get(r.itemId);
       if (!item) continue; // item desconhecido => ignorado (não pontua)
-      const round = buildRoundFor(def, pool, item, r.salt | 0);
+      // salt do cliente = Math.floor(rnd*1e9). Usa o MESMO inteiro (sem truncar
+      // p/ int32 como `| 0` faria), senão a reconstrução por seed divergiria.
+      const salt = Number.isFinite(r.salt) ? Math.trunc(r.salt) : 0;
+      const round = buildRoundFor(def, pool, item, salt);
       const res = resolveRound(def, round, r.input || {}, {
         combo,
         format: 'timer',

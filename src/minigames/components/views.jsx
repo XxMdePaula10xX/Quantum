@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import ItemImage from '../../components/ItemImage.jsx';
 
 // Cada view recebe { round, onSubmit, answered } e devolve o `input` esperado
@@ -199,10 +199,13 @@ export function TimelineView({ round, onSubmit, answered }) {
   );
 }
 
+// memo: no Contra o tempo o cronômetro re-renderiza o GamePlay a cada 100ms.
+// Com props estáveis (round/onSubmit/answered/feedback), a view não re-renderiza
+// junto — mantém o jogo fluido.
 export const VIEWS = {
-  whenLaunched: WhenLaunchedView,
-  higherLower: HigherLowerView,
-  whichCountry: WhichCountryView,
-  guessImage: GuessImageView,
-  timeline: TimelineView,
+  whenLaunched: memo(WhenLaunchedView),
+  higherLower: memo(HigherLowerView),
+  whichCountry: memo(WhichCountryView),
+  guessImage: memo(GuessImageView),
+  timeline: memo(TimelineView),
 };
