@@ -11,7 +11,16 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 
-const auth = FIREBASE_ENABLED ? getAuth(app) : null;
+let auth = null;
+if (FIREBASE_ENABLED && app) {
+  try {
+    auth = getAuth(app);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('getAuth falhou — login indisponível:', e);
+    auth = null;
+  }
+}
 
 export function onAuth(cb) {
   if (!auth) {

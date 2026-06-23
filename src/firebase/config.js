@@ -13,11 +13,20 @@ const cfg = {
   appId: import.meta.env?.VITE_FIREBASE_APP_ID,
 };
 
-export const FIREBASE_ENABLED = Boolean(cfg.apiKey && cfg.projectId);
+// `let` exportado: vira live binding — se a init falhar, vira false p/ todos.
+export let FIREBASE_ENABLED = Boolean(cfg.apiKey && cfg.projectId);
 
 let app = null;
 if (FIREBASE_ENABLED) {
-  app = initializeApp(cfg);
+  try {
+    app = initializeApp(cfg);
+  } catch (e) {
+    // não derruba o app: segue em modo offline
+    // eslint-disable-next-line no-console
+    console.error('Firebase init falhou — seguindo offline:', e);
+    app = null;
+    FIREBASE_ENABLED = false;
+  }
 }
 
 export { app, cfg };

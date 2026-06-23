@@ -17,14 +17,27 @@ export default function App() {
 
   // Espera o estado de auth resolver antes de liberar o jogo, senão o uid pode
   // estar defasado (null) ao tocar no diário e a trava por conta erra.
-  useEffect(
-    () =>
-      onAuth((u) => {
+  // Timeout de segurança: se o auth não responder (ex.: WKWebView), libera mesmo
+  // assim — o jogo offline funciona; login/ranking ficam indisponíveis.
+  useEffect(() => {
+    let unsub = () => {};
+    const timer = setTimeout(() => setAuthReady(true), 3000);
+    try {
+      unsub = onAuth((u) => {
         setUser(u);
         setAuthReady(true);
-      }),
-    []
-  );
+        clearTimeout(timer);
+      });
+    } catch (e) {
+      console.error('onAuth falhou:', e);
+      setAuthReady(true);
+      clearTimeout(timer);
+    }
+    return () => {
+      clearTimeout(timer);
+      unsub();
+    };
+  }, []);
 
   if (!authReady) {
     return <div className="app"><p className="center muted">Carregando…</p></div>;
