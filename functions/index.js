@@ -11,8 +11,9 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 
-import { getMinigame } from '../src/minigames/registry.js';
+import { getMinigame, MINIGAMES } from '../src/minigames/registry.js';
 import { makeDailyRounds, resolveRound, buildRoundFor } from '../src/engine/session.js';
 import { itemsForMinigame } from '../src/minigames/registry.js';
 // Mesma base ATIVA do app: cliente e servidor importam o MESMO items.json,
@@ -85,6 +86,7 @@ export const submitDailyScore = onCall(async (request) => {
 
     const { total, breakdown } = recompute(def, rounds, answers, 'daily');
     await ref.set({
+      uid, // permite limpar os dados do usuário em "Excluir conta"
       score: total,
       breakdown,
       displayName: request.auth.token.name || null,
@@ -136,6 +138,7 @@ export const submitTimerScore = onCall(async (request) => {
     const best = Math.max(total, prev.exists ? prev.data().bestScore || 0 : 0);
     await ref.set(
       {
+        uid, // permite limpar os dados do usuário em "Excluir conta"
         bestScore: best,
         displayName: request.auth.token.name || null,
         achievedAt: FieldValue.serverTimestamp(),
@@ -145,5 +148,41 @@ export const submitTimerScore = onCall(async (request) => {
     return { score: total, bestScore: best };
   } catch (e) {
     throw asHttps(e, 'Falha ao enviar a pontuação');
+  }
+});
+
+// ---- Excluir conta (exigência da App Store 5.1.1) --------------------------
+// Apaga os dados de ranking do usuário e remove a conta do Firebase Auth.
+// A limpeza dos dados é "best-effort" (logada se falhar); a remoção da conta
+// é o passo que PRECISA acontecer. Tudo via Admin SDK, autenticado pelo token.
+export const deleteAccount = onCall(async (request) => {
+  try {
+    const uid = requireAuth(request);
+
+    // 1) Apaga as pontuações do diário (uma subcoleção por minigame) e do
+    //    Contra o tempo (collectionGroup 'scores'), filtrando pelo campo uid.
+    const groups = [...MINIGAMES.map((m) => m.id), 'scores'];
+    for (const g of groups) {
+      try {
+        const snap = await db.collectionGroup(g).where('uid', '==', uid).get();
+        await Promise.all(snap.docs.map((d) => d.ref.delete()));
+      } catch (e) {
+        // não bloqueia a exclusão da conta (ex.: índice ausente)
+        console.error(`limpeza de ${g} falhou:`, e && e.message ? e.message : e);
+      }
+    }
+
+    // 2) Perfil opcional do usuário.
+    try {
+      await db.doc(`users/${uid}`).delete();
+    } catch (e) {
+      console.error('limpeza de users falhou:', e && e.message ? e.message : e);
+    }
+
+    // 3) Remove a conta do Auth (passo obrigatório).
+    await getAuth().deleteUser(uid);
+    return { ok: true };
+  } catch (e) {
+    throw asHttps(e, 'Falha ao excluir a conta');
   }
 });

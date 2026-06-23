@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { loginWithEmail, registerWithEmail, resetPassword, signOut, updateNickname } from '../firebase/auth.js';
+import { deleteAccount } from '../firebase/scores.js';
 
 export default function LoginScreen({ user, onBack }) {
   const [email, setEmail] = useState('');
@@ -117,6 +118,8 @@ export default function LoginScreen({ user, onBack }) {
 // Perfil de quem está logado: vê e edita o apelido (nome do ranking).
 function Profile({ user, run, setError, setInfo }) {
   const [nick, setNick] = useState(user.displayName || '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const save = () => {
     if (nick.trim().length < 2) {
       setError('Escolha um apelido com pelo menos 2 caracteres.');
@@ -130,6 +133,18 @@ function Profile({ user, run, setError, setInfo }) {
       },
       { keepOpen: true }
     );
+  };
+  // Exclui a conta no servidor (dados + Auth) e encerra a sessão local.
+  const remove = () => {
+    setDeleting(true);
+    run(async () => {
+      try {
+        await deleteAccount();
+        await signOut();
+      } finally {
+        setDeleting(false);
+      }
+    });
   };
   return (
     <div className="card">
@@ -147,6 +162,33 @@ function Profile({ user, run, setError, setInfo }) {
       <button className="btn ghost block" style={{ marginTop: 12 }} onClick={() => run(signOut)}>
         Sair da conta
       </button>
+
+      {/* Excluir conta — exigência da App Store (5.1.1) */}
+      <hr style={{ border: 0, borderTop: '1px solid rgba(255,255,255,0.1)', margin: '14px 0' }} />
+      {!confirmDelete ? (
+        <button className="btn ghost small block" onClick={() => setConfirmDelete(true)}>
+          Excluir conta
+        </button>
+      ) : (
+        <div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            Isso apaga sua conta e suas pontuações do ranking, sem volta. Tem certeza?
+          </p>
+          <div className="row">
+            <button className="btn ghost small" disabled={deleting} onClick={() => setConfirmDelete(false)}>
+              Cancelar
+            </button>
+            <button
+              className="btn small"
+              disabled={deleting}
+              style={{ borderColor: 'rgba(255,122,138,0.6)', color: '#ff7a8a' }}
+              onClick={remove}
+            >
+              {deleting ? 'Excluindo…' : 'Sim, excluir minha conta'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -50,6 +50,14 @@ export async function submitTimerScore(payload) {
   return data;
 }
 
+/** Exclui a conta do usuário e seus dados de ranking (App Store 5.1.1). */
+export async function deleteAccount() {
+  if (!functions) throw new Error('Recurso indisponível (Firebase não configurado).');
+  const fn = httpsCallable(functions, 'deleteAccount');
+  const { data } = await fn();
+  return data;
+}
+
 /** Lê o top N do ranking diário de um minigame numa data. */
 export async function getDailyLeaderboard(minigameId, date, top = 50) {
   if (!db) return [];
