@@ -26,3 +26,9 @@ scripts/generate/.cache/
 # predev/prebuild a partir de src/data/items.json — não versionar).
 src/data/mg/
 src/data/meta.json
+
+# Chaves privadas (assinatura iOS) — NUNCA versionar
+*.pem
+*.p12
+*.p8
+ios_cert_key*
