@@ -32,14 +32,16 @@ export default function MenuScreen({ user, uid, onPlay, onOpenRanking, onOpenLog
           return (
             <div className="card game-card" key={m.id}>
               <div className="icon">{m.icon}</div>
-              <div className="name">{m.name}</div>
-              <div className="blurb">{m.blurb}</div>
-              <div className="formats">
-                <button className="btn small primary" onClick={() => onPlay(m.id, 'daily')}>
-                  Diário {played ? '✓' : ''}
-                </button>
-                <button className="btn small" onClick={() => onPlay(m.id, 'infinite')}>∞</button>
-                <button className="btn small" onClick={() => onPlay(m.id, 'timer')}>⏱</button>
+              <div className="gc-body">
+                <div className="name">{m.name}</div>
+                <div className="blurb">{m.blurb}</div>
+                <div className="formats">
+                  <button className="btn small primary" onClick={() => onPlay(m.id, 'daily')}>
+                    Diário {played ? '✓' : ''}
+                  </button>
+                  <button className="btn small" onClick={() => onPlay(m.id, 'infinite')}>∞</button>
+                  <button className="btn small" onClick={() => onPlay(m.id, 'timer')}>⏱</button>
+                </div>
               </div>
             </div>
           );

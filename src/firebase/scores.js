@@ -3,6 +3,7 @@
 // e grava. Aqui ficam os wrappers de leitura/escrita.
 import { app, FIREBASE_ENABLED } from './config.js';
 import {
+  initializeFirestore,
   getFirestore,
   collection,
   query,
@@ -16,7 +17,17 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
-const db = FIREBASE_ENABLED ? getFirestore(app) : null;
+// experimentalForceLongPolling: o transporte padrão do Firestore (WebChannel)
+// NÃO funciona dentro do WKWebView do iOS (Capacitor) — as leituras ficam
+// "carregando" para sempre. Long polling resolve.
+let db = null;
+if (FIREBASE_ENABLED && app) {
+  try {
+    db = initializeFirestore(app, { experimentalForceLongPolling: true });
+  } catch {
+    db = getFirestore(app); // já inicializado
+  }
+}
 const functions = FIREBASE_ENABLED ? getFunctions(app) : null;
 
 /**

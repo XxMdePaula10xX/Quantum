@@ -24,10 +24,15 @@ export default function RankingScreen({ user, initial, onBack }) {
     setLoading(true);
     setError('');
     try {
-      const [list, my] = await Promise.all([
+      const work = Promise.all([
         tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId),
         tab === 'daily' ? getMyDailyEntry(minigameId, date, uid) : getMyTimerEntry(minigameId, uid),
       ]);
+      // rede travada não deixa o ranking carregando para sempre
+      const timeout = new Promise((_, rej) =>
+        setTimeout(() => rej(new Error('Tempo esgotado ao ler o ranking. Toque em 🔄 para tentar.')), 12000)
+      );
+      const [list, my] = await Promise.race([work, timeout]);
       setRows(list);
       setMine(my);
     } catch (e) {
