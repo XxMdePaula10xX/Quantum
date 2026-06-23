@@ -160,10 +160,12 @@ workflows:
           keychain initialize
           # diagnóstico: lista os certificados de distribuição existentes
           app-store-connect list-certificates --type IOS_DISTRIBUTION || true
-          # --create cria o certificado de distribuição e o perfil App Store
-          # caso ainda não existam (app novo) — usa a chave quantum_asc.
+          # Usa uma CHAVE PRIVADA FIXA (env CERTIFICATE_PRIVATE_KEY) para que o
+          # MESMO certificado seja reusado em todo build (sem criar órfãos sem
+          # chave). Cria o certificado a partir dela e o perfil App Store.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key "@env:CERTIFICATE_PRIVATE_KEY" \
             --create \
             --platform IOS
           keychain add-certificates
