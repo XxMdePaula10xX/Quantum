@@ -13,7 +13,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       java: 21
       # Para ligar login/ranking no app empacotado, crie no Codemagic um grupo
       # de variáveis chamado "firebase" com as chaves VITE_FIREBASE_* e descomente:
@@ -53,7 +53,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       java: 21
       groups:
         - firebase # VITE_FIREBASE_* (ver PUBLISH.md)
@@ -97,7 +97,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
-      node: 20
+      node: 22
       xcode: latest
     scripts:
       - name: Instalar dependências
@@ -131,7 +131,7 @@ workflows:
     integrations:
       app_store_connect: quantum_asc # chave da App Store Connect (ver PUBLISH.md)
     environment:
-      node: 20
+      node: 22
       xcode: latest
       groups:
         - firebase
