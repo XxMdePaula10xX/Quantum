@@ -28,7 +28,16 @@ if (FIREBASE_ENABLED && app) {
     db = getFirestore(app); // já inicializado
   }
 }
-const functions = FIREBASE_ENABLED ? getFunctions(app) : null;
+let functions = null;
+if (FIREBASE_ENABLED && app) {
+  try {
+    functions = getFunctions(app);
+  } catch (e) {
+    // não derruba o carregamento do módulo (e do app) no WebView do iOS
+    // eslint-disable-next-line no-console
+    console.error('getFunctions falhou — ranking indisponível:', e);
+  }
+}
 
 /**
  * Envia o resultado do diário para validação no servidor.

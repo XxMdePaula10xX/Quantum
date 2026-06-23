@@ -37,11 +37,19 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Captura erros globais (fora do React) e mostra na tela também.
-window.addEventListener('error', (e) => {
+// Captura erros globais (fora do React) e mostra na tela também — inclusive
+// falhas de carregamento de módulo, que acontecem antes do React montar.
+function showBootError(msg) {
   const el = document.getElementById('boot-error');
-  if (el) el.textContent = 'Erro: ' + (e?.message || e);
-});
+  if (el) {
+    el.style.display = 'block';
+    el.textContent = 'Erro ao iniciar: ' + msg;
+  }
+}
+window.addEventListener('error', (e) => showBootError(e?.message || String(e)));
+window.addEventListener('unhandledrejection', (e) =>
+  showBootError(e?.reason?.message || String(e?.reason || e))
+);
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

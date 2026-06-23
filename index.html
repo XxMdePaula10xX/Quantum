@@ -16,6 +16,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Mostra erros que acontecem ANTES do React montar (module-eval no
+         WKWebView), evitando tela branca sem diagnóstico. -->
+    <div id="boot-error" style="display:none;color:#ff9aa6;font:14px/1.4 system-ui;padding:24px;white-space:pre-wrap"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

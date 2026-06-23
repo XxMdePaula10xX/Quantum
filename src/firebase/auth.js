@@ -69,7 +69,14 @@ export async function resetPassword(email) {
 export async function updateNickname(displayName) {
   if (!auth || !auth.currentUser) throw new Error('Você não está conectado.');
   await updateProfile(auth.currentUser, { displayName });
-  await auth.currentUser.getIdToken(true);
+  // refresh do token é best-effort: o apelido JÁ foi salvo acima; se o refresh
+  // falhar no WebView do iOS, não deve aparecer como "erro ao salvar".
+  try {
+    await auth.currentUser.getIdToken(true);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Token não atualizado agora (entra no próximo envio):', e?.message || e);
+  }
   return auth.currentUser;
 }
 

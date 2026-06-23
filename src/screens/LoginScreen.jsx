@@ -135,12 +135,18 @@ function Profile({ user, run, setError, setInfo }) {
     );
   };
   // Exclui a conta no servidor (dados + Auth) e encerra a sessão local.
+  // Uma vez que deleteAccount() retorna, a conta JÁ foi removida — o signOut
+  // seguinte é best-effort (não pode "desfazer" e não deve virar erro).
   const remove = () => {
     setDeleting(true);
     run(async () => {
       try {
         await deleteAccount();
-        await signOut();
+        try {
+          await signOut();
+        } catch {
+          /* conta já removida; sessão local cai sozinha no próximo onAuth */
+        }
       } finally {
         setDeleting(false);
       }

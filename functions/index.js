@@ -28,6 +28,19 @@ function requireAuth(request) {
   return request.auth.uid;
 }
 
+// Apelido para o ranking. O claim `name` do token pode estar vazio se o refresh
+// pós-cadastro falhou (comum no WebView do iOS) — nesse caso busca o perfil.
+async function displayNameFor(request, uid) {
+  const fromToken = request.auth?.token?.name;
+  if (fromToken) return fromToken;
+  try {
+    const u = await getAuth().getUser(uid);
+    return u.displayName || null;
+  } catch {
+    return null;
+  }
+}
+
 // Converte exceções inesperadas em HttpsError COM mensagem (o Firebase esconde
 // a mensagem de erros não-HttpsError, virando um "internal" opaco). Também loga
 // o stack completo, que aparece em `firebase functions:log`.
@@ -89,7 +102,7 @@ export const submitDailyScore = onCall(async (request) => {
       uid, // permite limpar os dados do usuário em "Excluir conta"
       score: total,
       breakdown,
-      displayName: request.auth.token.name || null,
+      displayName: await displayNameFor(request, uid),
       submittedAt: FieldValue.serverTimestamp(),
     });
     return { score: total, breakdown };
@@ -117,7 +130,14 @@ export const submitTimerScore = onCall(async (request) => {
     let total = 0;
     for (const r of clientRounds) {
       const item = byId.get(r.itemId);
-      if (!item) continue; // item desconhecido => ignorado (não pontua)
+      if (!item) {
+        // itemId veio da base do cliente; se o servidor não o conhece, as bases
+        // divergem — avisa em vez de gravar um placar silenciosamente baixo.
+        throw new HttpsError(
+          'failed-precondition',
+          'A base do servidor está diferente do app. Rode "firebase deploy --only functions" depois de regenerar a base.'
+        );
+      }
       // salt do cliente = Math.floor(rnd*1e9). Usa o MESMO inteiro (sem truncar
       // p/ int32 como `| 0` faria), senão a reconstrução por seed divergiria.
       const salt = Number.isFinite(r.salt) ? Math.trunc(r.salt) : 0;
@@ -140,7 +160,7 @@ export const submitTimerScore = onCall(async (request) => {
       {
         uid, // permite limpar os dados do usuário em "Excluir conta"
         bestScore: best,
-        displayName: request.auth.token.name || null,
+        displayName: await displayNameFor(request, uid),
         achievedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }

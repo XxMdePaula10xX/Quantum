@@ -57,6 +57,17 @@ export default function GameScreen({ minigameId, format, uid, onExit, onFinish }
     return <div className="app"><p className="center muted">Carregando {def.name}…</p></div>;
   }
 
+  // Base vazia (filtros tiraram tudo / arquivo corrompido): falha graciosa em
+  // vez de quebrar dentro do GamePlay (que monta a 1ª rodada no render).
+  if (pool.length === 0) {
+    return (
+      <div className="app">
+        <div className="banner">Sem itens disponíveis para este minigame. Tente outro ou atualize o app.</div>
+        <button className="btn ghost block" onClick={onExit}>Voltar ao menu</button>
+      </div>
+    );
+  }
+
   return (
     <>
       <GamePlay
