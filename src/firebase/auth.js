@@ -3,6 +3,10 @@
 import { app, FIREBASE_ENABLED } from './config.js';
 import {
   getAuth,
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  inMemoryPersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
@@ -14,13 +18,41 @@ import {
 let auth = null;
 if (FIREBASE_ENABLED && app) {
   try {
-    auth = getAuth(app);
+    // initializeAuth com lista de persistências: no WKWebView do iOS o
+    // IndexedDB às vezes TRAVA a inicialização do Auth (login fica eterno).
+    // A lista tenta IndexedDB -> localStorage -> memória, sem travar.
+    auth = initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
+    });
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.error('getAuth falhou — login indisponível:', e);
-    auth = null;
+    // já inicializado (HMR/duplo import) ou ambiente sem suporte: cai no getAuth
+    try {
+      auth = getAuth(app);
+    } catch (e2) {
+      // eslint-disable-next-line no-console
+      console.error('Auth indisponível:', e2 || e);
+      auth = null;
+    }
   }
 }
+
+// Timeout para operações de rede do Auth: no iOS uma chamada pode ficar
+// pendurada para sempre se o WebView não alcança o servidor. Em vez de travar
+// o botão em "Aguarde…", devolve um erro claro.
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => {
+        const e = new Error(message);
+        e.code = 'quantum/timeout';
+        reject(e);
+      }, ms)
+    ),
+  ]);
+}
+const NET_TIMEOUT_MS = 20000;
+const NET_MSG = 'Sem resposta do servidor (rede). Verifique a conexão e tente de novo.';
 
 export function onAuth(cb) {
   if (!auth) {
@@ -32,7 +64,11 @@ export function onAuth(cb) {
 
 export async function loginWithEmail(email, password) {
   if (!auth) throw new Error('Firebase não configurado');
-  const { user } = await signInWithEmailAndPassword(auth, email, password);
+  const { user } = await withTimeout(
+    signInWithEmailAndPassword(auth, email, password),
+    NET_TIMEOUT_MS,
+    NET_MSG
+  );
   return user;
 }
 
@@ -44,7 +80,11 @@ export async function registerWithEmail(email, password, displayName) {
 
   let user;
   try {
-    ({ user } = await createUserWithEmailAndPassword(auth, email, password));
+    ({ user } = await withTimeout(
+      createUserWithEmailAndPassword(auth, email, password),
+      NET_TIMEOUT_MS,
+      NET_MSG
+    ));
   } catch (e) {
     // RECUPERAÇÃO: se o e-mail já existe (ex.: uma tentativa anterior já criou
     // a conta), em vez de bloquear, tenta ENTRAR com a mesma senha digitada.
