@@ -37,18 +37,29 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Captura erros globais (fora do React) e mostra na tela também — inclusive
-// falhas de carregamento de módulo, que acontecem antes do React montar.
+// Mostra erro SÓ quando o app não renderizou nada (tela branca / falha de
+// boot). Se o app já montou (root tem filhos), um erro assíncrono solto NÃO
+// deve desfigurar a tela com um "script error" vermelho — vai só pro console,
+// e cada tela trata seu próprio erro (ex.: o ranking mostra o motivo real).
 function showBootError(msg) {
+  const root = document.getElementById('root');
+  if (root && root.childElementCount > 0) {
+    // eslint-disable-next-line no-console
+    console.error('Erro em runtime (app já montado):', msg);
+    return;
+  }
   const el = document.getElementById('boot-error');
   if (el) {
     el.style.display = 'block';
     el.textContent = 'Erro ao iniciar: ' + msg;
   }
 }
-window.addEventListener('error', (e) => showBootError(e?.message || String(e)));
+window.addEventListener('error', (e) => {
+  const where = e?.filename ? ` (${e.filename}:${e.lineno})` : '';
+  showBootError((e?.message || String(e)) + where);
+});
 window.addEventListener('unhandledrejection', (e) =>
-  showBootError(e?.reason?.message || String(e?.reason || e))
+  showBootError(e?.reason?.stack || e?.reason?.message || String(e?.reason || e))
 );
 
 createRoot(document.getElementById('root')).render(

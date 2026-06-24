@@ -94,31 +94,39 @@ async function rankByField(col, field, value) {
 /** Resultado do PRÓPRIO usuário no diário (score + posição), mesmo fora do top. */
 export async function getMyDailyEntry(minigameId, date, uid) {
   if (!db || !uid) return null;
-  const snap = await getDoc(doc(db, 'dailyScores', date, minigameId, uid));
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  let rank = null;
   try {
-    rank = await rankByField(collection(db, 'dailyScores', date, minigameId), 'score', data.score);
+    const snap = await getDoc(doc(db, 'dailyScores', date, minigameId, uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    let rank = null;
+    try {
+      rank = await rankByField(collection(db, 'dailyScores', date, minigameId), 'score', data.score);
+    } catch {
+      /* contagem indisponível: mostra o score sem a posição */
+    }
+    return { uid, ...data, rank };
   } catch {
-    /* contagem indisponível: mostra o score sem a posição */
+    return null; // leitura pessoal é opcional: nunca derruba o ranking
   }
-  return { uid, ...data, rank };
 }
 
 /** Recorde do PRÓPRIO usuário no Contra o tempo (score + posição). */
 export async function getMyTimerEntry(minigameId, uid) {
   if (!db || !uid) return null;
-  const snap = await getDoc(doc(db, 'timerScores', minigameId, 'scores', uid));
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  let rank = null;
   try {
-    rank = await rankByField(collection(db, 'timerScores', minigameId, 'scores'), 'bestScore', data.bestScore);
+    const snap = await getDoc(doc(db, 'timerScores', minigameId, 'scores', uid));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    let rank = null;
+    try {
+      rank = await rankByField(collection(db, 'timerScores', minigameId, 'scores'), 'bestScore', data.bestScore);
+    } catch {
+      /* contagem indisponível: mostra o score sem a posição */
+    }
+    return { uid, ...data, rank };
   } catch {
-    /* contagem indisponível: mostra o score sem a posição */
+    return null;
   }
-  return { uid, ...data, rank };
 }
 
 export { db };
