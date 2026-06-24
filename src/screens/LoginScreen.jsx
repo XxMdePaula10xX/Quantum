@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { loginWithEmail, registerWithEmail, resetPassword, signOut, updateNickname } from '../firebase/auth.js';
 import { deleteAccount } from '../firebase/scores.js';
@@ -11,9 +11,13 @@ export default function LoginScreen({ user, onBack }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
+  // guard SÍNCRONO (ref, não state): bloqueia toque duplo de verdade — senão
+  // dois cliques rápidos chamam createUser 2x e o 2º dá "e-mail já existe".
+  const inFlight = useRef(false);
 
   const run = async (fn, { keepOpen = false } = {}) => {
-    if (busy) return; // evita duplo-toque (criar conta 2x => "já existe")
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError('');
     setInfo('');
@@ -21,8 +25,10 @@ export default function LoginScreen({ user, onBack }) {
       await fn();
       if (!keepOpen) onBack();
     } catch (e) {
-      setError(traduzErro(e));
+      // mostra o código real do Firebase entre colchetes (diagnóstico)
+      setError(traduzErro(e) + (e?.code ? ` [${e.code}]` : ''));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
