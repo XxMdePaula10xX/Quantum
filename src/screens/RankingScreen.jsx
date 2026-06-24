@@ -24,42 +24,53 @@ export default function RankingScreen({ user, initial, onBack }) {
     if (!FIREBASE_ENABLED) return;
     setLoading(true);
     setError('');
-    // Cada leitura tem seu próprio timeout e é independente: a LISTA aparece
-    // mesmo que "minha posição" (contagem) trave no WebView do iOS.
-    const withTimeout = (p) =>
-      Promise.race([
-        p,
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
-      ]);
-    const lbP = tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId);
-    const myP = tab === 'daily' ? getMyDailyEntry(minigameId, date, uid) : getMyTimerEntry(minigameId, uid);
+    // try/catch geral: NADA aqui pode virar "unhandled rejection" (era o que
+    // disparava o overlay vermelho "Script error" no iOS).
+    try {
+      // Cada leitura tem seu próprio timeout e é independente: a LISTA aparece
+      // mesmo que "minha posição" (contagem) trave no WebView do iOS.
+      const withTimeout = (p) =>
+        Promise.race([
+          p,
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
+        ]);
+      const lbP = tab === 'daily' ? getDailyLeaderboard(minigameId, date) : getTimerLeaderboard(minigameId);
+      const myP = tab === 'daily' ? getMyDailyEntry(minigameId, date, uid) : getMyTimerEntry(minigameId, uid);
 
-    const [lb, my] = await Promise.allSettled([withTimeout(lbP), withTimeout(myP)]);
-    if (!aliveRef.current) return; // saiu da tela enquanto carregava
+      const [lb, my] = await Promise.allSettled([withTimeout(lbP), withTimeout(myP)]);
+      if (!aliveRef.current) return; // saiu da tela enquanto carregava
 
-    if (lb.status === 'fulfilled') {
-      setRows(lb.value);
-      setError('');
-    } else {
-      setRows([]);
-      const r = lb.reason;
-      // mensagem diagnóstica: distingue rede x permissão x outro
-      const msg =
-        r?.message === 'timeout'
-          ? 'Sem resposta do servidor (rede/long-polling). Toque em 🔄 para tentar.'
-          : r?.code === 'permission-denied'
-          ? 'Permissão negada: publique as regras com "firebase deploy --only firestore".'
-          : `Erro ao ler o ranking: ${r?.code || r?.message || r}`;
-      setError(msg);
+      if (lb.status === 'fulfilled') {
+        setRows(lb.value);
+        setError('');
+      } else {
+        setRows([]);
+        const r = lb.reason;
+        // mensagem diagnóstica: distingue rede x permissão x outro
+        const msg =
+          r?.message === 'timeout'
+            ? 'Sem resposta do servidor (rede/long-polling). Toque em 🔄 para tentar.'
+            : r?.code === 'permission-denied'
+            ? 'Permissão negada: publique as regras com "firebase deploy --only firestore".'
+            : `Erro ao ler o ranking: ${r?.code || r?.message || r}`;
+        setError(msg);
+      }
+      setMine(my.status === 'fulfilled' ? my.value : null);
+    } catch (e) {
+      if (aliveRef.current) {
+        setRows([]);
+        setError(`Erro ao ler o ranking: ${e?.code || e?.message || e}`);
+      }
+    } finally {
+      if (aliveRef.current) setLoading(false);
     }
-    setMine(my.status === 'fulfilled' ? my.value : null);
-    setLoading(false);
   }, [tab, minigameId, date, uid]);
 
   // Carrega automaticamente ao entrar e ao trocar aba/minigame.
+  // load().catch(): blindagem extra contra promessa solta (overlay "Script error").
   useEffect(() => {
     aliveRef.current = true;
-    load();
+    load().catch(() => {});
     return () => {
       aliveRef.current = false;
     };
@@ -73,7 +84,7 @@ export default function RankingScreen({ user, initial, onBack }) {
       <div className="topbar">
         <div className="brand">🏆 Ranking</div>
         <div className="row">
-          <button className="btn small ghost" onClick={load} aria-label="Atualizar">🔄</button>
+          <button className="btn small ghost" onClick={() => load().catch(() => {})} aria-label="Atualizar">🔄</button>
           <button className="btn small ghost" onClick={onBack}>Menu</button>
         </div>
       </div>
@@ -122,9 +133,9 @@ export default function RankingScreen({ user, initial, onBack }) {
           {rows.map((r, i) => {
             const me = r.uid === uid;
             return (
-              <div className="lb-row" key={r.uid} style={me ? { borderColor: 'var(--accent-2)' } : undefined}>
+              <div className="lb-row" key={r.uid || i} style={me ? { borderColor: 'var(--accent-2)' } : undefined}>
                 <span className="pos">{i + 1}</span>
-                <span>{r.displayName || r.uid.slice(0, 6)}{me ? ' (você)' : ''}</span>
+                <span>{r.displayName || (r.uid ? r.uid.slice(0, 6) : '—')}{me ? ' (você)' : ''}</span>
                 <span className="pts">{scoreOf(r)} pts</span>
               </div>
             );

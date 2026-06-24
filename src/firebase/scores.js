@@ -72,7 +72,8 @@ export async function getDailyLeaderboard(minigameId, date, top = 50) {
   if (!db) return [];
   const col = collection(db, 'dailyScores', date, minigameId);
   const snap = await getDocs(query(col, orderBy('score', 'desc'), limit(top)));
-  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  // uid: d.id por ÚLTIMO — um campo uid gravado no doc não pode sobrescrever o id
+  return snap.docs.map((d) => ({ ...d.data(), uid: d.id }));
 }
 
 /** Lê o top N do ranking de Contra o tempo de um minigame. */
@@ -80,7 +81,7 @@ export async function getTimerLeaderboard(minigameId, top = 50) {
   if (!db) return [];
   const col = collection(db, 'timerScores', minigameId, 'scores');
   const snap = await getDocs(query(col, orderBy('bestScore', 'desc'), limit(top)));
-  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+  return snap.docs.map((d) => ({ ...d.data(), uid: d.id }));
 }
 
 // Posição (rank) do usuário = nº de pontuações maiores + 1.
