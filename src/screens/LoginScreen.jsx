@@ -10,8 +10,11 @@ export default function LoginScreen({ user, onBack }) {
   const [mode, setMode] = useState('login'); // login | register
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const run = async (fn, { keepOpen = false } = {}) => {
+    if (busy) return; // evita duplo-toque (criar conta 2x => "já existe")
+    setBusy(true);
     setError('');
     setInfo('');
     try {
@@ -19,6 +22,8 @@ export default function LoginScreen({ user, onBack }) {
       if (!keepOpen) onBack();
     } catch (e) {
       setError(traduzErro(e));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -85,8 +90,8 @@ export default function LoginScreen({ user, onBack }) {
           <label style={{ marginTop: 8 }}>Senha</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-          <button className="btn primary block" style={{ marginTop: 12 }} onClick={submit}>
-            {mode === 'login' ? 'Entrar' : 'Criar conta'}
+          <button className="btn primary block" style={{ marginTop: 12 }} onClick={submit} disabled={busy}>
+            {busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
           </button>
 
           {mode === 'login' && (

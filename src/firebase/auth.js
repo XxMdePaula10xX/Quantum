@@ -41,12 +41,42 @@ export async function loginWithEmail(email, password) {
 // forçamos o refresh do token para o apelido já valer no primeiro envio.
 export async function registerWithEmail(email, password, displayName) {
   if (!auth) throw new Error('Firebase não configurado');
-  const { user } = await createUserWithEmailAndPassword(auth, email, password);
-  // IMPORTANTE: a conta JÁ está criada e logada aqui. Os passos abaixo (gravar
-  // o apelido e atualizar o token) são "best-effort": no WebView do iOS eles
-  // às vezes falham/travam. Se lançássemos o erro, o usuário acharia que o
-  // cadastro falhou e tentaria de novo — recebendo "e-mail já cadastrado",
-  // porque a conta foi criada na primeira tentativa.
+
+  let user;
+  try {
+    ({ user } = await createUserWithEmailAndPassword(auth, email, password));
+  } catch (e) {
+    // RECUPERAÇÃO: se o e-mail já existe (ex.: uma tentativa anterior já criou
+    // a conta), em vez de bloquear, tenta ENTRAR com a mesma senha digitada.
+    // Resolve o caso clássico de "toda hora diz que o e-mail já existe".
+    if (e?.code === 'auth/email-already-in-use') {
+      let existing;
+      try {
+        ({ user: existing } = await signInWithEmailAndPassword(auth, email, password));
+      } catch {
+        const err = new Error(
+          'Esse e-mail já tem uma conta. Entre com sua senha (ou use "Esqueci minha senha").'
+        );
+        err.code = 'quantum/email-in-use';
+        throw err;
+      }
+      // conta antiga sem apelido: aproveita o que foi digitado agora
+      if (displayName && !existing.displayName) {
+        try {
+          await updateProfile(existing, { displayName });
+          await existing.getIdToken(true);
+        } catch {
+          /* best-effort */
+        }
+      }
+      return existing;
+    }
+    throw e;
+  }
+
+  // A conta JÁ está criada e logada aqui. updateProfile/getIdToken são
+  // "best-effort": no WebView do iOS às vezes falham; se lançássemos o erro, o
+  // usuário acharia que o cadastro falhou e tentaria de novo.
   if (displayName) {
     try {
       await updateProfile(user, { displayName });
