@@ -154,6 +154,13 @@ workflows:
         script: npm run build
       - name: Sincronizar Capacitor (iOS)
         script: npx cap sync ios
+      - name: Definir build number (único e incremental)
+        script: |
+          # O App Store REJEITA reenvio com o mesmo build number. Usa o contador
+          # do Codemagic ($BUILD_NUMBER) + offset para ficar acima dos builds
+          # manuais antigos. Nao precisa mais bumpar CURRENT_PROJECT_VERSION a mao.
+          cd ios/App
+          agvtool new-version -all $(( ${BUILD_NUMBER:-1} + 100 ))
       - name: Assinatura (CRIA certificado + perfil se não existir)
         script: |
           set -x

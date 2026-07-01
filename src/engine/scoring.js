@@ -19,7 +19,10 @@ export const HINT_PENALTY = 0.2; // cada dica PAGA reduz os pontos em 20%
  * Aplicada no cliente e no servidor (mesmo `hintsUsed` enviado na resposta).
  */
 export function applyHintPenalty(points, hintsUsed = 0) {
-  const factor = Math.pow(1 - HINT_PENALTY, Math.max(0, hintsUsed | 0));
+  // clamp ANTES de arredondar (sem `| 0`, que truncaria p/ int32 e um valor
+  // gigante viraria negativo => penalidade zero, burlando a regra no servidor).
+  const n = Math.max(0, Math.floor(Number(hintsUsed) || 0));
+  const factor = Math.pow(1 - HINT_PENALTY, n);
   return Math.round(points * factor);
 }
 
@@ -41,6 +44,7 @@ export function proximityScore(error, maxError, opts = {}) {
   const { k = PROXIMITY_K, maxPoints = PONTOS_MAX } = opts;
   if (!(maxError > 0)) return 0;
   const e = Math.abs(error);
+  if (!Number.isFinite(e)) return 0; // input inválido (NaN) => pior caso, não propaga NaN
   const ratio = clamp(1 - e / maxError, 0, 1);
   return Math.round(maxPoints * Math.pow(ratio, k));
 }

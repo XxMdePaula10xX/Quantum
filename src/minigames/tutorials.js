@@ -22,7 +22,7 @@ export const MINIGAME_HOWTO = {
     tagline: 'De onde isso vem?',
     steps: [
       'Veja o item em destaque.',
-      'Escolha o país certo entre as 4 opções.',
+      'Escolha o país certo entre as 5 opções.',
       'Acerto direto vale pontos cheios.',
     ],
   },
@@ -30,7 +30,7 @@ export const MINIGAME_HOWTO = {
     tagline: 'Reconheça a imagem.',
     steps: [
       'A imagem aparece inteira.',
-      'Escolha entre as 5 opções qual item é.',
+      'Escolha entre as 4 opções qual item é.',
       'Acerto vale pontos cheios.',
     ],
   },

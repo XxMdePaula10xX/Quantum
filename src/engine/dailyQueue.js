@@ -27,9 +27,10 @@ export function todayKey(now = new Date()) {
   return now.toISOString().slice(0, 10);
 }
 
-/** Dias decorridos desde BASE_DATE (>= 0). */
+/** Dias decorridos desde BASE_DATE (>= 0). Nunca retorna NaN (date malformado => 0). */
 export function daysSinceBase(dateStr) {
-  return Math.max(0, dateToDayNumber(dateStr) - dateToDayNumber(BASE_DATE));
+  const n = dateToDayNumber(dateStr) - dateToDayNumber(BASE_DATE);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
 }
 
 /**

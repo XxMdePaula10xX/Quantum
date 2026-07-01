@@ -92,8 +92,13 @@ export async function registerWithEmail(email, password, displayName) {
     if (e?.code === 'auth/email-already-in-use') {
       let existing;
       try {
-        ({ user: existing } = await signInWithEmailAndPassword(auth, email, password));
-      } catch {
+        ({ user: existing } = await withTimeout(
+          signInWithEmailAndPassword(auth, email, password),
+          NET_TIMEOUT_MS,
+          NET_MSG
+        ));
+      } catch (e2) {
+        if (e2?.code === 'quantum/timeout') throw e2; // preserva erro de rede real
         const err = new Error(
           'Esse e-mail já tem uma conta. Entre com sua senha (ou use "Esqueci minha senha").'
         );
@@ -131,14 +136,14 @@ export async function registerWithEmail(email, password, displayName) {
 
 export async function resetPassword(email) {
   if (!auth) throw new Error('Firebase não configurado');
-  await sendPasswordResetEmail(auth, email);
+  await withTimeout(sendPasswordResetEmail(auth, email), NET_TIMEOUT_MS, NET_MSG);
 }
 
 // Atualiza o apelido (displayName) de quem já está logado. Reflete no ranking
 // nos próximos envios (refresh do token para o claim `name`).
 export async function updateNickname(displayName) {
   if (!auth || !auth.currentUser) throw new Error('Você não está conectado.');
-  await updateProfile(auth.currentUser, { displayName });
+  await withTimeout(updateProfile(auth.currentUser, { displayName }), NET_TIMEOUT_MS, NET_MSG);
   // refresh do token é best-effort: o apelido JÁ foi salvo acima; se o refresh
   // falhar no WebView do iOS, não deve aparecer como "erro ao salvar".
   try {

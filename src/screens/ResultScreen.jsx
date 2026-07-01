@@ -35,8 +35,8 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
         await submitDailyScore({
           minigameId: result.minigameId,
           date: result.date,
-          // inclui itemId por rodada para o servidor detectar base desatualizada
-          answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId })),
+          // itemId + pairIds por rodada: servidor detecta base desatualizada
+          answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId, pairIds: b.pairIds })),
         });
       } else {
         await submitTimerScore({
@@ -45,6 +45,7 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
             itemId: b.itemId,
             salt: b.salt,
             input: b.input,
+            pairIds: b.pairIds,
             timeRemaining: b.timeRemaining,
             timeTotal: result.timeTotal,
           })),
@@ -77,13 +78,24 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
 
   const share = async () => {
     try {
-      if (navigator.share) await navigator.share({ text: shareText });
-      else {
+      if (navigator.share) {
+        await navigator.share({ text: shareText });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareText);
         setShared(true);
+        return;
       }
+      // WKWebView sem share nem clipboard: fallback que sempre funciona
+      window.prompt('Copie seu resultado:', shareText);
     } catch {
-      /* cancelado */
+      // share cancelado OU clipboard bloqueado: oferece o texto para copiar à mão
+      try {
+        window.prompt('Copie seu resultado:', shareText);
+      } catch {
+        /* sem prompt disponível */
+      }
     }
   };
 

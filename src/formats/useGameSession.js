@@ -81,6 +81,12 @@ export function useGameSession(def, format, { date, pool }) {
         itemId: current.item.id,
         salt: current.salt ?? 0,
         timeRemaining: timeLeftRef.current,
+        // par do "Maior ou menor": deixa o servidor detectar base divergente
+        // (o oponente muda se o items.json da Function estiver defasado).
+        pairIds:
+          current.data && current.data.a && current.data.b
+            ? [current.data.a.id, current.data.b.id]
+            : undefined,
       };
       setBreakdown((b) => [...b, entry]);
       setLastResult(entry);

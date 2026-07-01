@@ -69,7 +69,10 @@ function windowOf(year, span) {
   const lo = Math.floor(year / span) * span;
   return `entre ${lo} e ${lo + span}`;
 }
-const firstLetter = (s) => (s ? s.trim()[0].toUpperCase() : '?');
+const firstLetter = (s) => {
+  const t = (s || '').trim();
+  return t ? t[0].toUpperCase() : '?'; // string só de espaços não quebra ('' [0] = undefined)
+};
 
 // ----------------------------------------------------------------------------
 
@@ -117,13 +120,22 @@ export const MINIGAMES = [
     scoring: { type: 'binary', basePoints: 100, useCombo: true },
     timerSeconds: 45,
     buildRound(pool, item, seed) {
-      // oponente com a MESMA métrica e valor DIFERENTE (sem empate ambíguo);
-      // cai para mesma categoria e, por último, qualquer item.
+      // oponente com valor DIFERENTE (sem empate ambíguo): mesma métrica,
+      // depois mesma categoria, depois qualquer — SEMPRE excluindo métrica igual.
       const sameMetric = pool.filter(
         (p) => p.id !== item.id && p.metricType === item.metricType && p.metric !== item.metric
       );
-      const sameCat = pool.filter((p) => p.id !== item.id && p.category === item.category);
-      const others = sameMetric.length ? sameMetric : sameCat.length ? sameCat : pool.filter((p) => p.id !== item.id);
+      const sameCatDiff = pool.filter(
+        (p) => p.id !== item.id && p.category === item.category && p.metric !== item.metric
+      );
+      const anyDiff = pool.filter((p) => p.id !== item.id && p.metric !== item.metric);
+      const others = sameMetric.length
+        ? sameMetric
+        : sameCatDiff.length
+        ? sameCatDiff
+        : anyDiff.length
+        ? anyDiff
+        : pool.filter((p) => p.id !== item.id);
       const opp = others[Math.floor(mulberry32(seed)() * others.length)] || item;
       const pair = seededShuffle([item, opp], seed); // ordem visual reproduzível
       return { kind: 'higherLower', a: pair[0], b: pair[1], metricType: item.metricType };
@@ -131,7 +143,9 @@ export const MINIGAMES = [
     evaluate(round, input) {
       const chosen = input.choice === 'a' ? round.a : round.b;
       const other = input.choice === 'a' ? round.b : round.a;
-      const correct = chosen.metric >= other.metric;
+      // estritamente maior: com oponente de métrica diferente não há empate;
+      // se por acaso empatar (base degenerada), nenhuma escolha é "acerto".
+      const correct = chosen.metric > other.metric;
       const metricType = round.metricType || 'valor';
       return {
         answer: { correct },
@@ -250,10 +264,15 @@ export const MINIGAMES = [
     // input: { orderedIds: string[] }
     evaluate(round, input) {
       const byId = new Map(round.items.map((it) => [it.id, it]));
-      const ordered = input.orderedIds.map((id) => byId.get(id));
-      const playerOrderValues = ordered.map((it) => it.year);
+      // tolera orderedIds ausente/malformado (não derruba o envio inteiro)
+      const ordered = (Array.isArray(input.orderedIds) ? input.orderedIds : []).map((id) => byId.get(id));
+      const playerOrderValues = ordered.map((it) => (it ? it.year : NaN));
       const sorted = [...round.items].sort((a, b) => a.year - b.year);
-      const correct = ordered.every((it, i) => it.id === sorted[i].id);
+      // acerto = anos em ordem não-decrescente (empates de ano são igualmente
+      // válidos), coerente com a pontuação por pares — evita "errado" num 1000.
+      const correct =
+        playerOrderValues.length === round.items.length &&
+        playerOrderValues.every((y, i) => i === 0 || playerOrderValues[i - 1] <= y);
       return {
         answer: { playerOrderValues },
         correct,

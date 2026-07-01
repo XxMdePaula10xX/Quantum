@@ -18,7 +18,10 @@ const YEAR_MAX = new Date().getFullYear();
 
 export function WhenLaunchedView({ round, onSubmit, answered }) {
   const [year, setYear] = useState(2000);
-  const clamped = Math.max(YEAR_MIN, Math.min(YEAR_MAX, year || YEAR_MIN));
+  // piso dinâmico: itens raros pré-1900 (ex.: 1º carro, 1886) precisam ser
+  // alcançáveis para o acerto exato valer 1000 — sem estragar a resolução >=1900.
+  const yearMin = Number.isFinite(round.item.year) ? Math.min(YEAR_MIN, round.item.year) : YEAR_MIN;
+  const clamped = Math.max(yearMin, Math.min(YEAR_MAX, year || yearMin));
   const label = clamped;
   return (
     <div className="card">
@@ -31,7 +34,7 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
       <input
         className="slider"
         type="range"
-        min={YEAR_MIN}
+        min={yearMin}
         max={YEAR_MAX}
         value={clamped}
         disabled={answered}
@@ -44,7 +47,7 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
         type="number"
         value={year}
         disabled={answered}
-        min={YEAR_MIN}
+        min={yearMin}
         max={YEAR_MAX}
         onChange={(e) => setYear(Number(e.target.value))}
         aria-label="ano (digite)"

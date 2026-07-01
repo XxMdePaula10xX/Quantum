@@ -16,12 +16,30 @@ import { getAuth } from 'firebase-admin/auth';
 import { getMinigame, MINIGAMES } from '../src/minigames/registry.js';
 import { makeDailyRounds, resolveRound, buildRoundFor } from '../src/engine/session.js';
 import { itemsForMinigame } from '../src/minigames/registry.js';
+import { todayKey } from '../src/engine/dailyQueue.js';
 // Mesma base ATIVA do app: cliente e servidor importam o MESMO items.json,
 // para que a reconstrução determinística do diário bata exatamente.
 import items from '../src/data/items.json' assert { type: 'json' };
 
 initializeApp();
 const db = getFirestore();
+
+// Teto de rodadas no Contra o tempo: evita DoS (payload gigante => bilhões de
+// operações reconstruindo rodadas). Nenhuma sessão real chega perto.
+const MAX_TIMER_ROUNDS = 500;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Base divergente no "Maior ou menor": o oponente é escolhido do pool inteiro,
+// então o itemId-foco pode bater mas o par mudar. Compara o PAR como conjunto.
+function pairMismatch(round, ans) {
+  if (!ans || !ans.pairIds || !round.data || !round.data.a || !round.data.b) return false;
+  const server = [round.data.a.id, round.data.b.id].slice().sort();
+  const client = ans.pairIds.slice().sort();
+  return server[0] !== client[0] || server[1] !== client[1];
+}
+
+const BASE_DIVERGENTE =
+  'A base do servidor está diferente do app. Rode "firebase deploy --only functions" depois de regenerar a base.';
 
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Login obrigatório para o ranking.');
@@ -56,13 +74,11 @@ function recompute(def, rounds, answers, format) {
   let total = 0;
   const breakdown = [];
   rounds.forEach((round, i) => {
-    const ans = answers[i] || {};
-    // Detecta base do servidor diferente da do app (itemId enviado pelo cliente).
-    if (ans.itemId && round.item && ans.itemId !== round.item.id) {
-      throw new HttpsError(
-        'failed-precondition',
-        'A base do servidor está diferente do app. Rode "firebase deploy --only functions" depois de regenerar a base.'
-      );
+    // resposta malformada não derruba o envio inteiro: vira rodada de 0 ponto
+    const ans = answers[i] && typeof answers[i] === 'object' ? answers[i] : {};
+    // Detecta base do servidor diferente da do app (itemId + par do oponente).
+    if ((ans.itemId && round.item && ans.itemId !== round.item.id) || pairMismatch(round, ans)) {
+      throw new HttpsError('failed-precondition', BASE_DIVERGENTE);
     }
     const res = resolveRound(def, round, ans, { combo, format });
     if (!Number.isFinite(res.points)) {
@@ -82,6 +98,15 @@ export const submitDailyScore = onCall(async (request) => {
     const { minigameId, date, answers } = request.data || {};
     if (!minigameId || !date || !Array.isArray(answers)) {
       throw new HttpsError('invalid-argument', 'Payload inválido.');
+    }
+    // date entra no path do documento e na reconstrução do diário: valida o
+    // formato (bloqueia barras/segmentos extras) e exige que seja HOJE (UTC),
+    // senão dá para pré-enviar dias futuros ou reenviar dias passados.
+    if (!DATE_RE.test(date)) {
+      throw new HttpsError('invalid-argument', 'Data inválida.');
+    }
+    if (date !== todayKey()) {
+      throw new HttpsError('failed-precondition', 'Só é possível enviar o diário de hoje.');
     }
     const def = getMinigame(minigameId);
 
@@ -122,9 +147,16 @@ export const submitTimerScore = onCall(async (request) => {
     if (!minigameId || !Array.isArray(clientRounds)) {
       throw new HttpsError('invalid-argument', 'Payload inválido.');
     }
+    if (clientRounds.length > MAX_TIMER_ROUNDS) {
+      throw new HttpsError('invalid-argument', 'Rodadas demais.');
+    }
     const def = getMinigame(minigameId);
     const pool = itemsForMinigame(items, def);
     const byId = new Map(pool.map((it) => [it.id, it]));
+    // tempo é CANÔNICO do minigame; não confia no timeTotal do cliente (que
+    // poderia inflar o bônus). timeRemaining é clampado a [0, timeTotal].
+    const timeTotal = def.timerSeconds || 60;
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
     let combo = 0;
     let total = 0;
@@ -133,20 +165,21 @@ export const submitTimerScore = onCall(async (request) => {
       if (!item) {
         // itemId veio da base do cliente; se o servidor não o conhece, as bases
         // divergem — avisa em vez de gravar um placar silenciosamente baixo.
-        throw new HttpsError(
-          'failed-precondition',
-          'A base do servidor está diferente do app. Rode "firebase deploy --only functions" depois de regenerar a base.'
-        );
+        throw new HttpsError('failed-precondition', BASE_DIVERGENTE);
       }
       // salt do cliente = Math.floor(rnd*1e9). Usa o MESMO inteiro (sem truncar
       // p/ int32 como `| 0` faria), senão a reconstrução por seed divergiria.
       const salt = Number.isFinite(r.salt) ? Math.trunc(r.salt) : 0;
       const round = buildRoundFor(def, pool, item, salt);
+      if (pairMismatch(round, r)) {
+        throw new HttpsError('failed-precondition', BASE_DIVERGENTE);
+      }
+      const timeRemaining = clamp(Number(r.timeRemaining) || 0, 0, timeTotal);
       const res = resolveRound(def, round, r.input || {}, {
         combo,
         format: 'timer',
-        timeRemaining: r.timeRemaining,
-        timeTotal: r.timeTotal,
+        timeRemaining,
+        timeTotal,
       });
       if (!Number.isFinite(res.points)) continue;
       combo = res.combo;
