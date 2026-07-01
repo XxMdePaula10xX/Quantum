@@ -10,13 +10,16 @@ function fmtNum(n) {
 }
 
 // ---- QuandoLançou ----------------------------------------------------------
-const YEAR_MIN = -3000;
+// Faixa moderna: a base é de produtos/lançamentos (quase tudo pós-1900). Com o
+// piso antigo (-3000) o slider ficava com resolução péssima no celular — 1990
+// caía a 99% do trilho e "não passava de 1990". 1900..hoje é usável.
+const YEAR_MIN = 1900;
 const YEAR_MAX = new Date().getFullYear();
 
 export function WhenLaunchedView({ round, onSubmit, answered }) {
-  const [year, setYear] = useState(1990);
-  const clamped = Math.max(YEAR_MIN, Math.min(YEAR_MAX, year || 0));
-  const label = year < 0 ? `${Math.abs(year)} a.C.` : year;
+  const [year, setYear] = useState(2000);
+  const clamped = Math.max(YEAR_MIN, Math.min(YEAR_MAX, year || YEAR_MIN));
+  const label = clamped;
   return (
     <div className="card">
       <ItemImage src={round.item.image} alt={round.item.name} />
@@ -118,21 +121,14 @@ export function WhichCountryView({ round, onSubmit, answered, feedback }) {
   );
 }
 
-// ---- Adivinhe pela imagem --------------------------------------------------
+// ---- Adivinhe pela imagem (imagem 100% visível) ----------------------------
 export function GuessImageView({ round, onSubmit, answered, feedback }) {
-  const [reveal, setReveal] = useState(0);
   const [chosen, setChosen] = useState(null);
-  const steps = round.steps;
   return (
     <div className="card">
-      <ItemImage src={round.item.image} alt={round.item.name} reveal={answered ? steps : reveal} steps={steps} hideAlt />
-      <p className="muted center">Revelação {answered ? steps : reveal}/{steps}</p>
-      {!answered && reveal < steps && (
-        <button className="btn ghost block" onClick={() => setReveal((r) => r + 1)}>
-          Revelar mais (vale menos pontos)
-        </button>
-      )}
-      <div className="options" style={{ marginTop: 10 }}>
+      <ItemImage src={round.item.image} alt={round.item.name} hideAlt />
+      <p className="muted center" style={{ marginTop: 10 }}>Que item é este?</p>
+      <div className="options" style={{ marginTop: 4 }}>
         {round.options.map((opt) => {
           let cls = 'btn';
           if (answered) {
@@ -146,7 +142,8 @@ export function GuessImageView({ round, onSubmit, answered, feedback }) {
               disabled={answered}
               onClick={() => {
                 setChosen(opt);
-                onSubmit({ choice: opt, revealStep: reveal });
+                // imagem sempre visível => sem penalidade de revelação (0)
+                onSubmit({ choice: opt, revealStep: 0 });
               }}
             >
               {opt}

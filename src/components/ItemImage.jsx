@@ -16,7 +16,11 @@ export default function ItemImage({ src, alt, reveal = null, steps = 4, hideAlt 
           className="itemimg"
           src={src}
           alt={hideAlt ? '' : alt}
-          loading="lazy"
+          // eager + no-referrer: no WKWebView do iOS o lazy e o Referer da
+          // Wikimedia às vezes impedem a imagem de carregar ("não aparece").
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
           style={{ filter: blur ? `blur(${blur}px)` : 'none', transform: `scale(${scale})` }}
         />

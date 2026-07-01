@@ -27,11 +27,11 @@ export const MINIGAME_HOWTO = {
     ],
   },
   guessImage: {
-    tagline: 'Adivinhe antes de revelar tudo.',
+    tagline: 'Reconheça a imagem.',
     steps: [
-      'A imagem começa borrada.',
-      'Toque em "Revelar mais" só se precisar — cada revelação vale menos.',
-      'Escolha o nome certo o quanto antes.',
+      'A imagem aparece inteira.',
+      'Escolha entre as 5 opções qual item é.',
+      'Acerto vale pontos cheios.',
     ],
   },
   timeline: {

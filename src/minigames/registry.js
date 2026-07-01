@@ -193,7 +193,7 @@ export const MINIGAMES = [
     id: 'guessImage',
     name: 'Adivinhe pela imagem',
     icon: '🖼️',
-    blurb: 'A imagem revela aos poucos — acerte o quanto antes.',
+    blurb: 'Veja a imagem e acerte que item é.',
     requiredFields: ['name', 'image'],
     excludeCategories: ['evento'],
     scoring: { type: 'proximity', maxError: GUESS_IMAGE_STEPS + 1, k: 1 },
@@ -216,9 +216,7 @@ export const MINIGAMES = [
         answer: { error },
         correct,
         correctText: round.item.name,
-        detail: correct
-          ? `Acertou com ${input.revealStep}/${GUESS_IMAGE_STEPS} revelações.`
-          : `Era ${round.item.name}.`,
+        detail: correct ? 'Acertou!' : `Era ${round.item.name}.`,
       };
     },
     hints(round) {
