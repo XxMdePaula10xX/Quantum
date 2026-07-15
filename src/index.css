@@ -281,6 +281,8 @@ body::after {
   flex: 1; text-align: center; padding: 12px; border-radius: var(--pill);
   background: var(--glass); border: 1px solid var(--stroke); cursor: pointer; font-weight: 700;
   transition: background 0.2s;
+  /* sem duplo-toque-zoom acidental ao trocar de aba (zoom fica p/ as imagens) */
+  touch-action: manipulation;
 }
 .tab.active { background: var(--grad); border-color: transparent; color: #0a0d1f; }
 

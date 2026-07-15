@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- permite pinça-zoom (WCAG 1.4.4); o tap rápido dos minigames é
+         preservado por touch-action: manipulation nos botões/abas -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#07091a" />
     <!-- Fonte de display carregada de forma NÃO bloqueante: o boot nunca espera
          a rede (essencial no app empacotado); cai em system-ui até a Sora chegar

@@ -58,14 +58,18 @@ export function markDailySubmitted(minigameId, date, uid) {
 }
 
 // ---- Recordes do modo Infinito e Contra o tempo ----------------------------
+// Por CONTA (uid): dois usuários no mesmo aparelho não compartilham recorde
+// (evita "🎉 Novo recorde!" falso). Sem login, usa o escopo 'local'.
 
-export function getBest(mode, minigameId) {
-  return readJSON(`best:${mode}:${minigameId}`, 0);
+const bestKey = (uid, mode, minigameId) => `best:${uid || 'local'}:${mode}:${minigameId}`;
+
+export function getBest(mode, minigameId, uid) {
+  return readJSON(bestKey(uid, mode, minigameId), 0);
 }
-export function setBest(mode, minigameId, score) {
-  const cur = getBest(mode, minigameId);
+export function setBest(mode, minigameId, score, uid) {
+  const cur = getBest(mode, minigameId, uid);
   if (score > cur) {
-    writeJSON(`best:${mode}:${minigameId}`, score);
+    writeJSON(bestKey(uid, mode, minigameId), score);
     return true;
   }
   return false;

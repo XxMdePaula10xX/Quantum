@@ -63,7 +63,7 @@ export default function GamePlay({ def, format, pool, date, uid, onExit, onFinis
     if (format === 'daily') {
       saveDailyResult(def.id, date, result, uid);
     } else {
-      result.isBest = setBest(format, def.id, totalScore);
+      result.isBest = setBest(format, def.id, totalScore, uid);
     }
     onFinish(result);
   }, [phase, breakdown, totalScore, def, format, date, uid, onFinish, session.timeTotal]);
