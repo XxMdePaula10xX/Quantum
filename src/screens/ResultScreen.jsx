@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildShareText } from '../engine/share.js';
 import { FIREBASE_ENABLED } from '../firebase/config.js';
 import { submitDailyScore, submitTimerScore } from '../firebase/scores.js';
+import { markDailySubmitted } from '../state/storage.js';
 
 export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpenRanking }) {
   const [shared, setShared] = useState(false);
@@ -38,6 +39,8 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
           // itemId + pairIds por rodada: servidor detecta base desatualizada
           answers: result.breakdown.map((b) => ({ ...b.input, itemId: b.itemId, pairIds: b.pairIds })),
         });
+        // persiste que já foi ao ranking (não reenvia ao reabrir o resultado)
+        markDailySubmitted(result.minigameId, result.date, user?.uid || null);
       } else {
         await submitTimerScore({
           minigameId: result.minigameId,
@@ -54,7 +57,14 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
       submittedRef.current = true; // sucesso: não reenvia
       if (aliveRef.current) setSubmitState('done');
     } catch (e) {
-      if (aliveRef.current) {
+      // "já enviou hoje" = já está no ranking (envio anterior sucedeu, mas o
+      // flag local não persistiu). Trata como sucesso, não como erro.
+      const already = /already-exists/.test(e?.code || '') || /já enviou/i.test(e?.message || '');
+      if (result.format === 'daily' && already) {
+        markDailySubmitted(result.minigameId, result.date, user?.uid || null);
+        submittedRef.current = true;
+        if (aliveRef.current) setSubmitState('done');
+      } else if (aliveRef.current) {
         setSubmitState('error');
         setSubmitMsg(e?.message || 'Não foi possível enviar agora.');
       }
@@ -119,7 +129,9 @@ export default function ResultScreen({ result, fresh, user, onBackToMenu, onOpen
 
       {/* Status do envio automático ao ranking */}
       {ranked && fresh && (
-        <RankingStatus state={submitState} msg={submitMsg} firebase={FIREBASE_ENABLED} loggedIn={!!user} />
+        <div role="status" aria-live="polite">
+          <RankingStatus state={submitState} msg={submitMsg} firebase={FIREBASE_ENABLED} loggedIn={!!user} />
+        </div>
       )}
       {ranked && fresh && submitState === 'error' && (
         <button className="btn ghost block" onClick={doSubmit}>🔄 Tentar enviar de novo</button>

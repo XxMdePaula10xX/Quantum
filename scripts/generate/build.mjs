@@ -122,7 +122,8 @@ function bindingToItem(b, q) {
     id: qid(val(b, 'item')),
     name: val(b, 'itemLabel'),
     year: val(b, 'year') ? parseInt(val(b, 'year'), 10) : undefined,
-    image: val(b, 'image'),
+    // https obrigatório: iOS (ATS) e Android (targetSdk 36) bloqueiam http://
+    image: val(b, 'image') ? val(b, 'image').replace(/^http:\/\//, 'https://') : undefined,
     country: val(b, 'countryLabel'),
     countryCode: val(b, 'countryCode'),
     category: q.category,

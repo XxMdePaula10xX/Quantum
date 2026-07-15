@@ -47,6 +47,15 @@ export function saveDailyResult(minigameId, date, result, uid) {
 export function hasPlayedDaily(minigameId, date, uid) {
   return getDailyResult(minigameId, date, uid) != null;
 }
+// Marca o diário como já enviado ao ranking (evita perder o placar se o envio
+// falhou e o usuário saiu: enquanto submitted!==true, a tela reenvia).
+export function markDailySubmitted(minigameId, date, uid) {
+  const r = getDailyResult(minigameId, date, uid);
+  if (r && r.submitted !== true) {
+    r.submitted = true;
+    writeJSON(dailyKey(minigameId, date, uid), r);
+  }
+}
 
 // ---- Recordes do modo Infinito e Contra o tempo ----------------------------
 

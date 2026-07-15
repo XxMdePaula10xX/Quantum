@@ -8,7 +8,7 @@ export default function MenuScreen({ user, uid, onPlay, onOpenRanking, onOpenLog
   return (
     <div className="app">
       <div className="topbar">
-        <div className="brand">Quant<span>um</span></div>
+        <h1 className="brand">Quant<span>um</span></h1>
         <div className="row">
           <button className="btn small ghost" onClick={onOpenRanking}>🏆 Ranking</button>
           <button className="btn small ghost" onClick={onOpenLogin}>
@@ -36,11 +36,26 @@ export default function MenuScreen({ user, uid, onPlay, onOpenRanking, onOpenLog
                 <div className="name">{m.name}</div>
                 <div className="blurb">{m.blurb}</div>
                 <div className="formats">
-                  <button className="btn small primary" onClick={() => onPlay(m.id, 'daily')}>
-                    Diário {played ? '✓' : ''}
+                  <button
+                    className={`btn small action ${played ? 'ghost' : 'primary'}`}
+                    onClick={() => onPlay(m.id, 'daily')}
+                  >
+                    {played ? 'Diário ✓ · Ver resultado' : 'Diário'}
                   </button>
-                  <button className="btn small" onClick={() => onPlay(m.id, 'infinite')}>∞</button>
-                  <button className="btn small" onClick={() => onPlay(m.id, 'timer')}>⏱</button>
+                  <button
+                    className="btn small action"
+                    aria-label={`Jogar ${m.name} no modo infinito`}
+                    onClick={() => onPlay(m.id, 'infinite')}
+                  >
+                    ∞
+                  </button>
+                  <button
+                    className="btn small action"
+                    aria-label={`Jogar ${m.name} no modo contra o tempo`}
+                    onClick={() => onPlay(m.id, 'timer')}
+                  >
+                    ⏱
+                  </button>
                 </div>
               </div>
             </div>

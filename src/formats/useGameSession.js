@@ -42,24 +42,25 @@ export function useGameSession(def, format, { date, pool }) {
   const comboRef = useRef(0);
   const timeLeftRef = useRef(timeTotal);
   timeLeftRef.current = timeLeft;
+  // fim absoluto (wall-clock): o cronômetro é ancorado UMA vez, então mudar de
+  // fase (playing<->answered) a cada rodada não reancora o intervalo nem soma
+  // folga (drift que favorecia o jogador e afastava do cálculo do servidor).
+  const endTsRef = useRef(null);
 
   const current = rounds[index];
 
   // Contagem regressiva do modo timer.
   useEffect(() => {
     if (!isTimer || phase === 'finished') return undefined;
-    const t = setInterval(() => {
-      setTimeLeft((s) => {
-        if (s <= 0.1) {
-          clearInterval(t);
-          setPhase('finished');
-          return 0;
-        }
-        return Math.round((s - 0.1) * 10) / 10;
-      });
-    }, 100);
+    if (endTsRef.current == null) endTsRef.current = Date.now() + timeTotal * 1000;
+    const tick = () => {
+      const left = Math.max(0, (endTsRef.current - Date.now()) / 1000);
+      setTimeLeft(Math.round(left * 10) / 10);
+      if (left <= 0) setPhase('finished');
+    };
+    const t = setInterval(tick, 100);
     return () => clearInterval(t);
-  }, [isTimer, phase]);
+  }, [isTimer, phase, timeTotal]);
 
   const submit = useCallback(
     (input) => {

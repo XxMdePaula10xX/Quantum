@@ -82,16 +82,35 @@ export default function RankingScreen({ user, initial, onBack }) {
   return (
     <div className="app">
       <div className="topbar">
-        <div className="brand">🏆 Ranking</div>
+        <h1 className="brand">🏆 Ranking</h1>
         <div className="row">
           <button className="btn small ghost" onClick={() => load().catch(() => {})} aria-label="Atualizar">🔄</button>
           <button className="btn small ghost" onClick={onBack}>Menu</button>
         </div>
       </div>
 
-      <div className="tabs">
-        <div className={`tab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>Diário (hoje)</div>
-        <div className={`tab ${tab === 'timer' ? 'active' : ''}`} onClick={() => setTab('timer')}>Contra o tempo</div>
+      <div className="tabs" role="tablist">
+        {[
+          { id: 'daily', label: 'Diário (hoje)' },
+          { id: 'timer', label: 'Contra o tempo' },
+        ].map((t) => (
+          <div
+            key={t.id}
+            className={`tab ${tab === t.id ? 'active' : ''}`}
+            role="tab"
+            tabIndex={0}
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setTab(t.id);
+              }
+            }}
+          >
+            {t.label}
+          </div>
+        ))}
       </div>
 
       <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -99,6 +118,7 @@ export default function RankingScreen({ user, initial, onBack }) {
           <button
             key={m.id}
             className={`btn small ${minigameId === m.id ? 'primary' : 'ghost'}`}
+            aria-pressed={minigameId === m.id}
             onClick={() => setMinigameId(m.id)}
           >
             {m.icon} {m.name}
@@ -123,9 +143,9 @@ export default function RankingScreen({ user, initial, onBack }) {
           ativar login e rankings validados no servidor.
         </div>
       ) : loading ? (
-        <p className="muted center">Carregando…</p>
+        <p className="muted center" role="status" aria-live="polite">Carregando…</p>
       ) : error ? (
-        <div className="banner">⚠️ {error}</div>
+        <div className="banner" role="status" aria-live="polite">⚠️ {error}</div>
       ) : rows.length === 0 ? (
         <p className="muted center">Sem pontuações ainda. Seja o primeiro!</p>
       ) : (

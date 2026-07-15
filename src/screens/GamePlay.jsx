@@ -108,7 +108,7 @@ export default function GamePlay({ def, format, pool, date, uid, onExit, onFinis
       )}
 
       {showFeedback && (
-        <div className={`feedback ${lastResult.correct ? 'good' : 'bad'}`}>
+        <div className={`feedback ${lastResult.correct ? 'good' : 'bad'}`} role="status" aria-live="assertive">
           <div className="pts">+{lastResult.points} pts</div>
           <div>Resposta: <strong>{lastResult.correctText}</strong></div>
           <div className="muted">{lastResult.detail}</div>

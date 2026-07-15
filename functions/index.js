@@ -41,6 +41,18 @@ function pairMismatch(round, ans) {
 const BASE_DIVERGENTE =
   'A base do servidor está diferente do app. Rode "firebase deploy --only functions" depois de regenerar a base.';
 
+// itemsForMinigame filtra+ordena a base inteira; memoiza por minigame (base
+// fixa por deploy) para não repetir o custo a cada submit.
+const poolCache = new Map();
+function poolFor(def) {
+  let pool = poolCache.get(def.id);
+  if (!pool) {
+    pool = itemsForMinigame(items, def);
+    poolCache.set(def.id, pool);
+  }
+  return pool;
+}
+
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Login obrigatório para o ranking.');
   return request.auth.uid;
@@ -151,7 +163,7 @@ export const submitTimerScore = onCall(async (request) => {
       throw new HttpsError('invalid-argument', 'Rodadas demais.');
     }
     const def = getMinigame(minigameId);
-    const pool = itemsForMinigame(items, def);
+    const pool = poolFor(def);
     const byId = new Map(pool.map((it) => [it.id, it]));
     // tempo é CANÔNICO do minigame; não confia no timeTotal do cliente (que
     // poderia inflar o bônus). timeRemaining é clampado a [0, timeTotal].

@@ -52,8 +52,9 @@ export default function App() {
     if (format === 'daily') {
       const existing = getDailyResult(minigameId, todayKey(), uid);
       if (existing) {
-        // resultado já guardado (dia já jogado) — só visualização, não reenvia.
-        setView({ name: 'result', result: existing, fresh: false });
+        // dia já jogado. Se ainda NÃO foi enviado ao ranking (falha de rede +
+        // saída), reabre como fresh para o envio ser retentado; senão só exibe.
+        setView({ name: 'result', result: existing, fresh: existing.submitted !== true });
         return;
       }
     }

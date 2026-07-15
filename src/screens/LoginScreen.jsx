@@ -84,6 +84,8 @@ export default function LoginScreen({ user, onBack }) {
                 type="text"
                 value={nickname}
                 maxLength={20}
+                autoComplete="nickname"
+                autoCapitalize="none"
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="ex.: matheus_p"
               />
@@ -91,10 +93,23 @@ export default function LoginScreen({ user, onBack }) {
           )}
 
           <label style={{ marginTop: mode === 'register' ? 8 : 0 }}>E-mail</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            value={email}
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            inputMode="email"
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
           <label style={{ marginTop: 8 }}>Senha</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            value={password}
+            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
           <button className="btn primary block" style={{ marginTop: 12 }} onClick={submit} disabled={busy}>
             {busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
@@ -120,8 +135,8 @@ export default function LoginScreen({ user, onBack }) {
         </div>
       )}
 
-      {info && <div className="banner">{info}</div>}
-      {error && <div className="banner" style={{ borderColor: 'rgba(255,122,138,0.5)' }}>{error}</div>}
+      {info && <div className="banner" role="status" aria-live="polite">{info}</div>}
+      {error && <div className="banner" role="status" aria-live="polite" style={{ borderColor: 'rgba(255,122,138,0.5)' }}>{error}</div>}
     </div>
   );
 }
@@ -149,8 +164,10 @@ function Profile({ user, run, setError, setInfo }) {
   // Uma vez que deleteAccount() retorna, a conta JÁ foi removida — o signOut
   // seguinte é best-effort (não pode "desfazer" e não deve virar erro).
   const remove = () => {
-    setDeleting(true);
+    // setDeleting DENTRO do callback: se run() estiver ocupado (inFlight) e
+    // não executar, o botão não fica preso em "Excluindo…".
     run(async () => {
+      setDeleting(true);
       try {
         await deleteAccount();
         try {
@@ -168,7 +185,7 @@ function Profile({ user, run, setError, setInfo }) {
       <p style={{ marginTop: 0 }}>Conectado: <strong>{user.email}</strong></p>
       <label>Seu apelido (aparece no ranking)</label>
       <div className="row">
-        <input type="text" value={nick} maxLength={20} onChange={(e) => setNick(e.target.value)} placeholder="ex.: matheus_p" />
+        <input type="text" value={nick} maxLength={20} autoComplete="nickname" autoCapitalize="none" onChange={(e) => setNick(e.target.value)} placeholder="ex.: matheus_p" />
         <button className="btn primary small" onClick={save}>Salvar</button>
       </div>
       {!user.displayName && (

@@ -83,6 +83,7 @@ body::after {
 /* ---- Topbar / marca ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .brand {
+  margin: 0;
   font-weight: 800;
   font-size: 23px;
   letter-spacing: -0.5px;
@@ -138,6 +139,17 @@ body::after {
 }
 .btn.correct { background: var(--accent-3); border-color: transparent; color: #052e20; }
 .btn.wrong { background: var(--bad); border-color: transparent; color: #3a0712; }
+/* o feedback certo/errado precisa de cor CHEIA mesmo com o botão desabilitado
+   (senão o :disabled a 45% faz parecer bug) */
+.btn.correct, .btn.wrong { opacity: 1; }
+/* alvo de toque >= 44px nas ações principais do menu (Diário / ∞ / ⏱) */
+.btn.action { min-height: 44px; min-width: 44px; padding: 10px 16px; font-size: 14px; }
+/* foco visível por teclado / navegação assistiva (WCAG 2.4.7) */
+.btn:focus-visible, .tab:focus-visible, .game-card:focus-visible,
+.slider:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
 
 /* ---- Cards (glass) ---- */
 .card {
@@ -193,7 +205,10 @@ body::after {
 .score { font-variant-numeric: tabular-nums; font-weight: 800; }
 .combo { color: var(--warn); font-weight: 800; animation: pop 0.3s ease; }
 .timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 22px; }
-.timer.low { color: var(--bad); animation: pulse-glow 0.8s infinite; }
+/* pisca o TEXTO do cronômetro (não o box-shadow roxo do pulse-glow, que fazia
+   um halo retangular atrás do número vermelho) */
+.timer.low { color: var(--bad); animation: timer-pulse 0.8s infinite; }
+@keyframes timer-pulse { 50% { text-shadow: 0 0 18px rgba(255,122,138,0.9); opacity: 0.7; } }
 @keyframes pop { from { transform: scale(0.6); } }
 
 /* ---- Imagens ---- */
@@ -209,7 +224,6 @@ body::after {
 }
 
 .options { display: flex; flex-direction: column; gap: 10px; }
-.country-list { max-height: 280px; overflow-y: auto; }
 
 /* ---- Dicas ---- */
 .hints { display: flex; flex-direction: column; gap: 8px; }
@@ -246,7 +260,12 @@ body::after {
   background: var(--glass); border: 1px solid var(--stroke);
   border-radius: var(--r-md); padding: 12px 14px; margin-bottom: 10px;
 }
-.timeline-item .reorder { display: flex; gap: 6px; }
+.timeline-item .reorder { display: flex; gap: 10px; }
+/* setas ↑↓ são a ÚNICA forma de responder a Linha do tempo: alvo >= 44px */
+.timeline-item .reorder .btn.small {
+  min-width: 44px; min-height: 44px; padding: 8px; font-size: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
 
 /* ---- Resultado / ranking ---- */
 .result-blocks { font-size: 30px; letter-spacing: 6px; }

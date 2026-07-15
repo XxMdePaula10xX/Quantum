@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import ItemImage from '../../components/ItemImage.jsx';
 
 // Cada view recebe { round, onSubmit, answered } e devolve o `input` esperado
@@ -7,6 +7,31 @@ import ItemImage from '../../components/ItemImage.jsx';
 
 function fmtNum(n) {
   return typeof n === 'number' ? n.toLocaleString('pt-BR') : n;
+}
+
+// Feedback de opção NÃO só por cor (WCAG 1.4.1): prefixa ✓/✗ e dá aria-label.
+function optionState(opt, answered, correctText, chosen) {
+  if (!answered) return { cls: 'btn', text: opt, aria: undefined };
+  if (opt === correctText) return { cls: 'btn correct', text: `✓ ${opt}`, aria: `${opt}, correto` };
+  if (opt === chosen) return { cls: 'btn wrong', text: `✗ ${opt}`, aria: `${opt}, sua escolha, incorreta` };
+  return { cls: 'btn', text: opt, aria: undefined };
+}
+
+// Módulo (não recriado por render): manter ItemImage montado evita recarregar
+// as fotos ao responder no "Maior ou menor".
+function Side({ side, item, answered, onSubmit }) {
+  return (
+    <button
+      className="btn block"
+      style={{ height: '100%', flexDirection: 'column', display: 'flex', gap: 8 }}
+      disabled={answered}
+      onClick={() => onSubmit({ choice: side })}
+    >
+      <ItemImage src={item.image} alt={item.name} />
+      <strong>{item.name}</strong>
+      {answered && <span className="muted">{fmtNum(item.metric)}</span>}
+    </button>
+  );
 }
 
 // ---- QuandoLançou ----------------------------------------------------------
@@ -50,6 +75,7 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
         min={yearMin}
         max={YEAR_MAX}
         onChange={(e) => setYear(Number(e.target.value))}
+        onBlur={() => setYear(clamped)}
         aria-label="ano (digite)"
         style={{ textAlign: 'center' }}
       />
@@ -66,25 +92,13 @@ export function WhenLaunchedView({ round, onSubmit, answered }) {
 // ---- Maior ou menor --------------------------------------------------------
 export function HigherLowerView({ round, onSubmit, answered }) {
   const metricType = round.metricType || round.a.metricType || 'valor';
-  const Side = ({ side, item }) => (
-    <button
-      className="btn block"
-      style={{ height: '100%', flexDirection: 'column', display: 'flex', gap: 8 }}
-      disabled={answered}
-      onClick={() => onSubmit({ choice: side })}
-    >
-      <ItemImage src={item.image} alt={item.name} />
-      <strong>{item.name}</strong>
-      {answered && <span className="muted">{fmtNum(item.metric)}</span>}
-    </button>
-  );
   return (
     <div className="card">
       <p className="center muted">Qual tem mais <strong>{metricType}</strong>?</p>
       <div className="vs">
-        <Side side="a" item={round.a} />
+        <Side side="a" item={round.a} answered={answered} onSubmit={onSubmit} />
         <span className="or">ou</span>
-        <Side side="b" item={round.b} />
+        <Side side="b" item={round.b} answered={answered} onSubmit={onSubmit} />
       </div>
     </div>
   );
@@ -100,22 +114,19 @@ export function WhichCountryView({ round, onSubmit, answered, feedback }) {
       <p className="muted center" style={{ marginTop: 0 }}>De que país é?</p>
       <div className="options">
         {round.options.map((opt) => {
-          let cls = 'btn';
-          if (answered) {
-            if (opt === feedback?.correctText) cls += ' correct';
-            else if (opt === chosen) cls += ' wrong';
-          }
+          const st = optionState(opt, answered, feedback?.correctText, chosen);
           return (
             <button
               key={opt}
-              className={cls}
+              className={st.cls}
+              aria-label={st.aria}
               disabled={answered}
               onClick={() => {
                 setChosen(opt);
                 onSubmit({ choice: opt });
               }}
             >
-              {opt}
+              {st.text}
             </button>
           );
         })}
@@ -133,15 +144,12 @@ export function GuessImageView({ round, onSubmit, answered, feedback }) {
       <p className="muted center" style={{ marginTop: 10 }}>Que item é este?</p>
       <div className="options" style={{ marginTop: 4 }}>
         {round.options.map((opt) => {
-          let cls = 'btn';
-          if (answered) {
-            if (opt === feedback?.correctText) cls += ' correct';
-            else if (opt === chosen) cls += ' wrong';
-          }
+          const st = optionState(opt, answered, feedback?.correctText, chosen);
           return (
             <button
               key={opt}
-              className={cls}
+              className={st.cls}
+              aria-label={st.aria}
               disabled={answered}
               onClick={() => {
                 setChosen(opt);
@@ -149,7 +157,7 @@ export function GuessImageView({ round, onSubmit, answered, feedback }) {
                 onSubmit({ choice: opt, revealStep: 0 });
               }}
             >
-              {opt}
+              {st.text}
             </button>
           );
         })}
@@ -160,8 +168,9 @@ export function GuessImageView({ round, onSubmit, answered, feedback }) {
 
 // ---- Linha do tempo --------------------------------------------------------
 export function TimelineView({ round, onSubmit, answered }) {
+  // A view remonta a cada rodada (key={session.index} no GamePlay), então o
+  // useState já reinicializa com os itens novos — sem useEffect redundante.
   const [order, setOrder] = useState(round.items.map((it) => it.id));
-  useEffect(() => setOrder(round.items.map((it) => it.id)), [round]);
   const byId = new Map(round.items.map((it) => [it.id, it]));
 
   const move = (i, dir) => {
@@ -184,8 +193,8 @@ export function TimelineView({ round, onSubmit, answered }) {
           <div className="timeline-item" key={id}>
             <span>{it.name}{answered ? ` (${it.year})` : ''}</span>
             <span className="reorder">
-              <button className="btn small ghost" disabled={answered || i === 0} onClick={() => move(i, -1)}>↑</button>
-              <button className="btn small ghost" disabled={answered || i === order.length - 1} onClick={() => move(i, 1)}>↓</button>
+              <button className="btn small ghost" aria-label={`Mover ${it.name} para cima`} disabled={answered || i === 0} onClick={() => move(i, -1)}>↑</button>
+              <button className="btn small ghost" aria-label={`Mover ${it.name} para baixo`} disabled={answered || i === order.length - 1} onClick={() => move(i, 1)}>↓</button>
             </span>
           </div>
         );
